@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Putting an LLM into Bidding: A Product Teardown of a Power-Industry Bid Workbench · Chris</title>
+<meta name="description" content="A teardown of an AI bid workbench for the power industry: why it stops at “draft plus human review,” how it parses tender documents, three-layer retrieval, two-layer compliance review, and which evals it still lacks.">
+<meta property="og:title" content="Putting an LLM into Bidding: A Product Teardown of a Power-Industry Bid Workbench">
+<meta property="og:description" content="A teardown of an AI bid workbench for the power industry: why it stops at “draft plus human review,” how it parses tender documents, three-layer retrieval, two-layer compliance review, and which evals it still lacks.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2026%2026%27%3E%3Crect%20width%3D%2726%27%20height%3D%2726%27%20rx%3D%276%27%20fill%3D%27%230A0B0F%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%279%27%20fill%3D%27none%27%20stroke%3D%27%23F2F0EA%27%20stroke-opacity%3D%27.7%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%273%27%20fill%3D%27%23FF6A2B%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="alternate" hreflang="zh-CN" href="ai-bidding-grid.html">
+<link rel="stylesheet" href="../css/article.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+<div class="prog" aria-hidden="true"></div>
+<div class="top"><a class="back" href="../index.html?lang=en#articles">← Back to home</a><span class="rt"><a class="alt" href="ai-bidding-grid.html" hreflang="zh-CN">中文</a><span class="name">Chris</span></span></div>
+<div class="wrap">
+<aside class="toc" aria-label="Contents"><b>CONTENTS</b><a href="#s1">01 Not a writing contest</a><a href="#s2">02 Draw the boundary</a><a href="#s3">03 The overall flow</a><a href="#s4">04 Parsing</a><a href="#s5">05 Retrieval</a><a href="#s6">06 Drafting</a><a href="#s7">07 Compliance review</a><a href="#s8">08 Cost and tracking</a><a href="#s9">09 What is missing</a><a href="#s10">10 Limits and risks</a><a href="#s11">11 If I rebuilt it</a><a href="#refs">References</a></aside>
+<main>
+<header class="hd">
+  <div class="kick"><span>PROJECT TEARDOWN</span><span>v1 · First edition</span></div>
+  <h1>Putting an LLM into Bidding:<br>A Product Teardown of a Power-Industry <em>Bid Workbench</em></h1>
+  <p class="sub">A bid document is not a writing contest. The real design focus is parsing, retrieval, constraints and checking, with a person always in the loop.</p>
+  <div class="meta"><span>Author: Chris</span><span>About 18 min read</span><span>4 figures · 1 table</span></div>
+  <div class="abs"><h2>ABSTRACT</h2><p>This article takes apart an AI bid workbench for the power industry (the open-source repository ai_bidding_power_grid) and discusses:</p><ol><li>why it stops at “draft, reviewed by a person” rather than going fully automatic;</li><li>the design trade-offs in its four stages: parsing, retrieval, drafting and compliance review;</li><li>viewing it through the framework of the methodology article: which evals it lacks, and what to add next.</li></ol><p>The facts come from the repository’s README and evaluation report; the product analysis is the author’s judgment.</p></div>
+</header>
+
+<section class="s" id="s1">
+<h2 class="sh"><i>01</i>A bid document is not a writing contest</h2>
+<p class="lead">Asked to have a large model write a bid document, most people first think of “is the prose good enough?” Anyone who has bid knows that is not the hard part.</p>
+<p>A bid document is hard because it must satisfy three things at once: it must <strong>respond to the tender requirements</strong> with nothing missed, since failing a substantive clause usually means the bid is disqualified outright; it must <strong>score against the evaluation method</strong>, with content and evidence for every scoring item; and its content must be <strong>true</strong>, with no invented qualifications, track record or specifications. None of the three is solved by “writing beautifully.”</p>
+<p>This sets the design focus for this kind of product: not making the text-generation step as strong as possible, but chaining together <strong>parsing, retrieval, constraints and checking</strong> into an inspectable pipeline, with a person always in the loop. What I take apart below is the AI bid workbench for the power industry that I built. It targets power engineering, equipment supply and operations service companies, and puts the tender document, the company knowledge base and bid writing in one tool.<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<div class="call"><b class="t">The boundary of this article</b><p>The repository’s README states explicitly: AI output must be checked against the original tender documents and company materials; compliance checks are only an aid to preparing the bid, do not guarantee a win, and do not replace the bidder’s final review.<sup class="ref"><a href="#r1">[1]</a></sup> Every design below rests on that premise.</p></div>
+</section>
+
+<section class="s" id="s2">
+<h2 class="sh"><i>02</i>Draw the boundary first: what it does and does not do</h2>
+<p>In the methodology article I said an AI product must first decide its autonomy level. The choice here is clear: stop at <strong>“draft, reviewed by a person”</strong>, rather than “fully automatic bid document.” There are three reasons, all from the business itself:</p>
+<ul>
+<li><strong>The cost of an error is high, and hard to notice.</strong> Missing one substantive requirement raises no error at generation time, yet may cost the whole bid its eligibility at evaluation. This is exactly the “high cost, hard to notice” quadrant from the methodology, which only suits draft plus confirm.</li>
+<li><strong>Responsibility cannot be transferred.</strong> The bidder is responsible for the bid’s content; the tool provides drafting aid, and the final signature and review must be a person’s.</li>
+<li><strong>Materials have boundaries.</strong> The README recommends first importing de-identified credential or product materials, and in real business using only company materials you have the right to process.<sup class="ref"><a href="#r1">[1]</a></sup></li>
+</ul>
+<p>So the value of this product is not “bidding for you,” but <strong>turning a tender document of dozens of pages into a checklist that can be verified, then compressing the manual labor of writing and checking</strong>.</p>
+</section>
+
+<section class="s" id="s3">
+<h2 class="sh"><i>03</i>The overall flow: six steps, four human checkpoints</h2>
+<figure class="fg" id="fig1"><div class="figscroll"><svg viewBox="0 0 960 440" role="img" aria-labelledby="b1t b1d" class="svgfig"><title id="b1t">Workflow and human checkpoints of the bid workbench</title><desc id="b1d">Six steps in sequence: parse, retrieve, plan the outline, draft sections, check compliance, export; humans check at parsing, outline, draft and coverage; the knowledge base and usage records run throughout.</desc><defs><marker id="b1-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><rect x="196" y="40" width="422" height="36" rx="18" class="chip"/><text x="407.0" y="63" class="t14 mid">Knowledge base (pgvector): grounds retrieval &amp; drafting</text><g class="rise" style="--i:0"><rect x="50" y="110" width="130" height="104" rx="14" class="bx"/><rect x="50" y="110" width="130" height="4" rx="2" fill="rgb(125,184,255)"/><text x="64" y="142" class="t14 mono" fill="rgb(125,184,255)">1</text><text x="64" y="168" class="t15 bold">Parse tender</text><text x="64" y="192" class="t14 tm">Structured list</text></g><line x1="182" y1="162" x2="192" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:1"><rect x="196" y="110" width="130" height="104" rx="14" class="bx"/><rect x="196" y="110" width="130" height="4" rx="2" fill="rgb(151,168,213)"/><text x="210" y="142" class="t14 mono" fill="rgb(151,168,213)">2</text><text x="210" y="168" class="t15 bold">Retrieve data</text><text x="210" y="192" class="t14 tm">Company facts</text></g><line x1="328" y1="162" x2="338" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:2"><rect x="342" y="110" width="130" height="104" rx="14" class="bx"/><rect x="342" y="110" width="130" height="4" rx="2" fill="rgb(177,153,170)"/><text x="356" y="142" class="t14 mono" fill="rgb(177,153,170)">3</text><text x="356" y="168" class="t15 bold">Plan volumes</text><text x="356" y="192" class="t14 tm">Volume outline</text></g><line x1="474" y1="162" x2="484" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:3"><rect x="488" y="110" width="130" height="104" rx="14" class="bx"/><rect x="488" y="110" width="130" height="4" rx="2" fill="rgb(203,137,128)"/><text x="502" y="142" class="t14 mono" fill="rgb(203,137,128)">4</text><text x="502" y="168" class="t15 bold">Draft sections</text><text x="502" y="192" class="t14 tm">Streaming</text></g><line x1="620" y1="162" x2="630" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:4"><rect x="634" y="110" width="130" height="104" rx="14" class="bx"/><rect x="634" y="110" width="130" height="4" rx="2" fill="rgb(229,122,85)"/><text x="648" y="142" class="t14 mono" fill="rgb(229,122,85)">5</text><text x="648" y="168" class="t15 bold">Compliance</text><text x="648" y="192" class="t14 tm">Rules + LLM</text></g><line x1="766" y1="162" x2="776" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:5"><rect x="780" y="110" width="130" height="104" rx="14" class="bx"/><rect x="780" y="110" width="130" height="4" rx="2" fill="rgb(255,106,43)"/><text x="794" y="142" class="t14 mono" fill="rgb(255,106,43)">6</text><text x="794" y="168" class="t15 bold">Export DOCX</text><text x="794" y="192" class="t14 tm">Editable Word</text></g><line x1="115.0" y1="214" x2="115.0" y2="246" class="lnd"/><rect x="51.0" y="246" width="128" height="34" rx="17" class="gate"/><text x="115.0" y="268" class="t14 mid">Verify parsing</text><line x1="407.0" y1="214" x2="407.0" y2="246" class="lnd"/><rect x="343.0" y="246" width="128" height="34" rx="17" class="gate"/><text x="407.0" y="268" class="t14 mid">Adjust outline</text><line x1="553.0" y1="214" x2="553.0" y2="246" class="lnd"/><rect x="489.0" y="246" width="128" height="34" rx="17" class="gate"/><text x="553.0" y="268" class="t14 mid">Edit the draft</text><line x1="699.0" y1="214" x2="699.0" y2="246" class="lnd"/><rect x="635.0" y="246" width="128" height="34" rx="17" class="gate"/><text x="699.0" y="268" class="t14 mid">Review coverage</text><text x="50" y="324" class="t14 ta">Human checkpoints</text><rect x="50" y="340" width="860" height="44" rx="12" class="bx"/><text x="480" y="368" class="t14 mid">Task log · model usage &amp; cost records: throughout, every step traceable</text></svg></div><figcaption><b>Fig. 1</b>Workflow and human checkpoints of the bid workbench. Six steps in sequence, with checkpoints placed before one step’s output is “taken as true” by the next; the knowledge base and usage records run throughout.</figcaption></figure>
+<p>The first-use path recommended in the README is itself a pipeline with checkpoints: first fill in the company profile in system settings and import de-identified materials; upload the tender document and check the requirements, scoring items and risks that were parsed; generate the volume outline, choose sections to generate body text for, and edit in the editor; finally look at response coverage and AI usage records, then export DOCX.<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<p>Note where the checkpoints sit: all of them are placed <strong>before the output of one step is “taken as true” by the next</strong>. If parsing is wrong, the outline, body text and compliance check that follow will all be wrong, so the first checkpoint is the most expensive and the most worth investing in.</p>
+</section>
+
+<section class="s" id="s4">
+<h2 class="sh"><i>04</i>Parsing: turn a long document into a structured checklist</h2>
+<p>The output of the parsing step is the “source of truth” for every step after it. According to a description in an evaluation report inside the repository, the system extracts six kinds of information from the tender document: project overview, qualification requirements, commercial requirements, technical requirements, scoring items and risk items; for scanned files, images and complex tables, MinerU can be used for OCR.<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<p>From a product angle, this step has two design points:</p>
+<ul>
+<li><strong>Structured, not a summary.</strong> A summary reads well but cannot be checked item by item; a list of “requirements, scoring items, risk items” can serve later as the baseline for the compliance check.</li>
+<li><strong>Let people correct quickly.</strong> Parsed results should be presented in a form easy to verify, and be editable. Scanned-file recognition needs MinerU to be configured separately, which is a real dependency and a limitation that has to be made clear in the docs.<sup class="ref"><a href="#r1">[1]</a></sup></li>
+</ul>
+</section>
+
+<section class="s" id="s5">
+<h2 class="sh"><i>05</i>Retrieval: company material is not just “found”</h2>
+<p>What a bid document can least afford to get wrong is the company’s own facts: qualifications, track record, product parameters, model numbers. These should come from the knowledge base, not from the model’s “memory.” The knowledge-base retrieval in the README uses three layers: vector recall, Rerank and keyword fallback.<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<figure class="fg" id="fig2"><div class="figscroll"><svg viewBox="0 0 960 420" role="img" aria-labelledby="b2t b2d" class="svgfig"><title id="b2t">Three-layer retrieval over the knowledge base</title><desc id="b2d">A funnel: turn the section intent into a query, recall by vector, re-rank, and finally use keyword fallback to recover proper nouns; sourced results go into the drafting prompt.</desc><g class="rise" style="--i:0"><rect x="50.0" y="40" width="860" height="60" rx="12" fill="#7DB8FF" fill-opacity=".16" stroke="#7DB8FF" stroke-opacity=".8"/><text x="480" y="66" class="t16 bold mid">Tender requirement / section intent</text><text x="480" y="88" class="t14 tm mid">Turn what must be written into a query</text></g><g class="rise" style="--i:1"><rect x="120.0" y="116" width="720" height="60" rx="12" fill="#9EC9FF" fill-opacity=".16" stroke="#9EC9FF" stroke-opacity=".8"/><text x="480" y="142" class="t16 bold mid">Vector recall</text><text x="480" y="164" class="t14 tm mid">Find semantically similar material, wide coverage</text></g><g class="rise" style="--i:2"><rect x="190.0" y="192" width="580" height="60" rx="12" fill="#FFA070" fill-opacity=".16" stroke="#FFA070" stroke-opacity=".8"/><text x="480" y="218" class="t16 bold mid">Rerank</text><text x="480" y="240" class="t14 tm mid">Re-rank candidates, closer to the current section</text></g><g class="rise" style="--i:3"><rect x="260.0" y="268" width="440" height="60" rx="12" fill="#FF6A2B" fill-opacity=".16" stroke="#FF6A2B" stroke-opacity=".8"/><text x="480" y="294" class="t16 bold mid">Keyword fallback</text><text x="480" y="316" class="t14 tm mid">Model numbers, IDs, terms vectors miss</text></g><line x1="480" y1="344" x2="480" y2="364" class="ln"/><rect x="300" y="364" width="360" height="40" rx="20" class="gate"/><text x="480" y="390" class="t15 mid">Sourced material → drafting prompt</text></svg></div><figcaption><b>Fig. 2</b>Three-layer retrieval over the knowledge base. Vectors handle meaning, Rerank handles ordering, and keyword fallback handles proper nouns that “must match exactly.”</figcaption></figure>
+<p>Why the third layer? An evaluation report in the repository, reviewing an early version, noted that vector-only retrieval loses domain terms and model numbers, and recommended adding keyword retrieval and re-ranking.<sup class="ref"><a href="#r2">[2]</a></sup> The judgment matches intuition: vectors are good at “similar in meaning,” not at “must match exactly.” Equipment model numbers, clause numbers and certificate numbers are exactly the latter. The capabilities now listed in the README already include re-ranking and keyword fallback, in the direction that review recommended.</p>
+<div class="call"><b class="t">Product judgment</b><p>The goal of retrieval is not “finding related content” but “finding <strong>facts that can be cited</strong>.” So material entering the drafting prompt should carry its source, letting a person go back to the original to check during review.</p></div>
+</section>
+
+<section class="s" id="s6">
+<h2 class="sh"><i>06</i>Drafting: constrain the model with rules</h2>
+<p>The evaluation report lists the “rule-based writing plan” as one of this system’s highlights: for each section the system computes a target word count and suggested page count, and decides whether a table, picture, qualification or case needs to be inserted, constraining the model’s output with rules rather than leaving it entirely to free play.<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<p>Behind this is a general method: <strong>a constraint that can be written as a rule should not be left to the model to honor on its own</strong>. Length, structure and the elements that must appear are deterministic requirements, planned in code; the model is only responsible for writing the content fluently and in line with the material within that frame.</p>
+<h3>How long sections are written</h3>
+<p>The report notes that for core sections over 3,500 characters the system generates in multiple passes to avoid output being cut off by length limits, and body text is returned as a stream, so the user need not wait for a whole section before seeing content.<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<h3>A known risk: context pollution</h3>
+<p>The evaluation report also points out that the early version fed earlier sections to the model without trimming, so long generation could suffer context pollution, wasted tokens and diluted attention, and recommended compressing earlier text with summaries or a memory mechanism.<sup class="ref"><a href="#r2">[2]</a></sup> This risk is typical of long-text products: the longer the document, the more actively you must manage “what the model should see right now.”</p>
+</section>
+
+<section class="s" id="s7">
+<h2 class="sh"><i>07</i>Compliance review: from “is it there” to “is it right”</h2>
+<p>Compliance review is the part of this product closest to risk. The evaluation report’s assessment of the early version was that the compliance check relied mainly on text matching, could only do a coarse comparison and struggled to judge whether the draft truly responds semantically; it recommended upgrading to LLM-based semantic cross-checking.<sup class="ref"><a href="#r2">[2]</a></sup> The README now describes it as “rule checks plus LLM semantic review, locating missing responses and giving remediation advice.”<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<figure class="fg" id="fig3"><div class="figscroll"><svg viewBox="0 0 960 400" role="img" aria-labelledby="b3t b3d" class="svgfig"><title id="b3t">Two-layer compliance review</title><desc id="b3d">Requirements, scoring items and risks go through two layers: rule checks handle deterministic matching, semantic review judges whether the draft truly responds; the output is a gap list with remediation advice, finalized by a human.</desc><defs><marker id="b3-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#FF6A2B"/></marker></defs><rect x="40" y="140" width="200" height="120" rx="14" class="bx"/><text x="140.0" y="196.0" class="t16 bold mid">Tender requirements</text><text x="140.0" y="220.0" class="t14 tm mid">Scoring items · risks</text><rect x="330" y="70" width="280" height="100" rx="14" class="bx"/><text x="470.0" y="116.0" class="t16 bold mid">Rule checks</text><text x="470.0" y="140.0" class="t14 tm mid">Deterministic: found / not found</text><rect x="330" y="230" width="280" height="100" rx="14" class="bx"/><text x="470.0" y="276.0" class="t16 bold mid">LLM semantic review</text><text x="470.0" y="300.0" class="t14 tm mid">Judgment: does it really comply?</text><rect x="700" y="140" width="220" height="120" rx="14" class="bx hot"/><text x="810.0" y="196.0" class="t16 bold mid">Gap list</text><text x="810.0" y="220.0" class="t14 tm mid">+ remediation advice</text><path d="M240,180 Q285,120 330,120" class="flow" marker-end="url(#b3-a)"/><path d="M240,220 Q285,280 330,280" class="flow" marker-end="url(#b3-a)"/><path d="M610,120 Q655,120 700,175" class="flow" marker-end="url(#b3-a)"/><path d="M610,280 Q655,280 700,225" class="flow" marker-end="url(#b3-a)"/><line x1="810" y1="260" x2="810" y2="298" class="lnd"/><rect x="710" y="298" width="200" height="38" rx="19" class="gate"/><text x="810" y="323" class="t15 mid">Human sign-off</text><text x="40" y="372" class="t14 tm">Rules know “is it there”, semantics knows “is it right”; together they approach a real compliance check</text></svg></div><figcaption><b>Fig. 3</b>Two-layer compliance review. Rules know “is it there,” semantic review knows “is it right”; a person signs off on the result.</figcaption></figure>
+<p>The two layers have different jobs. Rule checks are deterministic: does a key item in the requirements appear in the body text? Semantic review answers the harder question: it is mentioned in the body, but does it <strong>actually satisfy</strong> the requirement? With only the first layer, “mentioned” is mistaken for “responded”; with only the second, results are hard to reproduce.</p>
+<p>The output is best restored to a form business people know, namely a coverage matrix between scoring items and volumes:</p>
+<figure class="fg" id="fig4"><div class="figscroll"><svg viewBox="0 0 960 400" role="img" aria-labelledby="b4t b4d" class="svgfig"><title id="b4t">Response coverage matrix (illustrative)</title><desc id="b4d">Rows are scoring and risk items, columns are volumes; dots show responded, partially responded or missing. Data is illustrative.</desc><text x="40" y="44" class="t16 tm">Response coverage: anything no volume answers is visible at a glance</text><text x="335.0" y="90" class="t16 bold mid">Technical</text><text x="485.0" y="90" class="t16 bold mid">Commercial</text><text x="635.0" y="90" class="t16 bold mid">Qualification</text><line x1="40" y1="114" x2="710" y2="114" class="ln faint"/><text x="40" y="140" class="t15">Scoring item A</text><circle cx="335.0" cy="134" r="9" fill="#7DB8FF" class="pop" style="--i:0"/><circle cx="485.0" cy="134" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4" class="pop" style="--i:1"/><path d="M485.0,125 A9,9 0 0 1 485.0,143 Z" fill="#FF9A6B" class="pop" style="--i:1"/><circle cx="635.0" cy="134" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:2"/><line x1="40" y1="156" x2="710" y2="156" class="ln faint"/><text x="40" y="182" class="t15">Scoring item B</text><circle cx="335.0" cy="176" r="9" fill="#7DB8FF" class="pop" style="--i:1"/><circle cx="485.0" cy="176" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:2"/><circle cx="635.0" cy="176" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:3"/><line x1="40" y1="198" x2="710" y2="198" class="ln faint"/><text x="40" y="224" class="t15">Scoring item C</text><circle cx="335.0" cy="218" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4" class="pop" style="--i:2"/><path d="M335.0,209 A9,9 0 0 1 335.0,227 Z" fill="#FF9A6B" class="pop" style="--i:2"/><circle cx="485.0" cy="218" r="9" fill="#7DB8FF" class="pop" style="--i:3"/><circle cx="635.0" cy="218" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:4"/><line x1="40" y1="240" x2="710" y2="240" class="ln faint"/><text x="40" y="266" class="t15">Scoring item D</text><circle cx="335.0" cy="260" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:3"/><circle cx="485.0" cy="260" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:4"/><circle cx="635.0" cy="260" r="9" fill="#7DB8FF" class="pop" style="--i:5"/><line x1="40" y1="282" x2="710" y2="282" class="ln faint"/><text x="40" y="308" class="t15">Risk item E</text><circle cx="335.0" cy="302" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4" class="pop" style="--i:4"/><path d="M335.0,293 A9,9 0 0 1 335.0,311 Z" fill="#FF9A6B" class="pop" style="--i:4"/><circle cx="485.0" cy="302" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:5"/><circle cx="635.0" cy="302" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4" class="pop" style="--i:6"/><path d="M635.0,293 A9,9 0 0 1 635.0,311 Z" fill="#FF9A6B" class="pop" style="--i:6"/><rect x="60" y="334" width="840" height="1" fill="none"/><circle cx="49" cy="366" r="9" fill="#7DB8FF"/><text x="66" y="371" class="t14 tm">Responded</text><circle cx="161" cy="366" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4"/><path d="M161,357 A9,9 0 0 1 161,375 Z" fill="#FF9A6B"/><text x="178" y="371" class="t14 tm">Partial</text><circle cx="287" cy="366" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3"/><text x="304" y="371" class="t14 tm">Missing (needs work)</text><text x="920" y="366" class="t14 tm end">Illustrative data</text></svg></div><figcaption><b>Fig. 4</b>Response coverage matrix (illustrative). Make “missing” visible: a scoring item that no volume answers is the first to fix. Data is illustrative.</figcaption></figure>
+<p>The value of the matrix is that it <strong>makes “missing” visible</strong>: a scoring item that no volume answers is the first to fix. What the person does at this step is judge, not hunt for faults character by character.</p>
+</section>
+
+<section class="s" id="s8">
+<h2 class="sh"><i>08</i>Cost and tracking: put the ledger in the product</h2>
+<p>A bid document is a typical case of generating long text in bulk: dozens of sections, each possibly generated in several passes, plus retrieval and review. The README lists “task records and records of model-call usage and cost” as part of delivery and tracking.<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<p>This is not a nice extra. Without usage and cost records, you cannot answer “what does one bid document really cost,” and so cannot decide how to price it, whether to switch models, or whether caching is worth it. I analyze this part in “The Pricing and Cost Ledger of AI Products.”</p>
+</section>
+
+<section class="s" id="s9">
+<h2 class="sh"><i>09</i>Through the lens of evals: what is still missing</h2>
+<p>This is the most honest section about this project. The README gives no quantified performance metrics or benchmark results; the evaluation report is only a qualitative assessment based on a code walkthrough, likewise with no benchmarks or test data.<sup class="ref"><a href="#r1">[1]</a></sup><sup class="ref"><a href="#r2">[2]</a></sup> In other words: <strong>it has a process design, but not yet an eval set that can be run repeatedly</strong>. By the framework of the methodology article, the next things to add are the checks below.</p>
+<div class="tw"><table>
+<thead><tr><th>Check</th><th>Type</th><th>How to judge</th><th>Why it matters</th></tr></thead>
+<tbody>
+<tr><td>Are all cited qualifications, track record and model numbers present in the knowledge base?</td><td>Hard constraint</td><td>Code comparison</td><td>A bid document must not invent facts</td></tr>
+<tr><td>Does parsing cover all scoring items in the tender document?</td><td>Hard constraint</td><td>Hand-labeled list + code comparison</td><td>Parsing is the baseline for every later step</td></tr>
+<tr><td>Is every substantive requirement responded to?</td><td>Hard constraint</td><td>Semantic review + human sampling</td><td>A miss can lead to disqualification</td></tr>
+<tr><td>Does each section fit the scoring points of the evaluation method?</td><td>Soft quality</td><td>Calibrated model judge</td><td>Decides “how good,” not “is it there”</td></tr>
+<tr><td>Is a long section consistent from start to end after multi-pass generation?</td><td>Soft quality</td><td>Human sampling</td><td>Corresponds to the risk of context pollution</td></tr>
+<tr><td>Pass rate grouped by bid type</td><td>Regression</td><td>Group-by-group comparison</td><td>Keeps the overall average from hiding a drop in a key group</td></tr>
+</tbody></table></div>
+<p class="tcap"><b>Table 1</b>Eval checks suggested as additions. Illustrative; the actual items need to be determined after labeling real de-identified tender documents.</p>
+</section>
+
+<section class="s" id="s10">
+<h2 class="sh"><i>10</i>Limitations and risks</h2>
+<ul>
+<li><strong>No quantified metrics.</strong> At present there is no number to say “how good it is”; that is what the previous section is about adding.</li>
+<li><strong>Confidentiality and privacy.</strong> Tender and company materials often involve trade secrets. The evaluation report itself does not discuss security, privacy or confidentiality, which is an obvious gap; the README’s advice to use de-identified materials and to replace the example secrets on deployment is only a starting point.<sup class="ref"><a href="#r1">[1]</a></sup><sup class="ref"><a href="#r2">[2]</a></sup></li>
+<li><strong>Dependence on external services.</strong> By default DeepSeek is used for writing and parsing, and the knowledge base depends on DashScope for embedding and reranking; the corresponding keys must both be configured, and the availability and cost of those services will affect the product.<sup class="ref"><a href="#r1">[1]</a></sup></li>
+<li><strong>Not a guarantee of winning.</strong> The result of a bid depends on many factors outside the tool. This product can reduce omissions and manual labor, but cannot replace judgment about the project itself.</li>
+<li><strong>Illustrative content.</strong> The coverage matrix in Figure 4 and the checks in Table 1 are meant to show the method and do not represent real data.</li>
+</ul>
+</section>
+
+<section class="s" id="s11">
+<h2 class="sh"><i>11</i>If I rebuilt it, what I would do first</h2>
+<ol>
+<li>Collect dozens of de-identified real tender documents, label the scoring items and substantive requirements by hand, and use them as the first version of the eval set.</li>
+<li>Turn “does parsing cover all scoring items” into a regression check that runs on every change.</li>
+<li>Label every fact in the knowledge base with its source, and make the drafting prompt cite sources.</li>
+<li>Set a “better to over-report than to miss” threshold for compliance review, and have the business side make that call.</li>
+<li>Record usage and cost for every step from day one, and use them to work back to pricing.</li>
+</ol>
+</section>
+
+<section class="s" id="refs">
+<h2 class="sh"><i>REF</i>References</h2>
+<ol class="refs">
+<li id="r1">sunShineLoveMe/ai_bidding_power_grid, README and project notes. <a href="https://github.com/sunShineLoveMe/ai_bidding_power_grid" target="_blank" rel="noopener">github.com/sunShineLoveMe/ai_bidding_power_grid</a></li>
+<li id="r2"><em>AI_Bidding_System_Evaluation_Report.md</em> in the same repository (a qualitative assessment based on a code walkthrough, of an early Hubei water-conservancy edition). <a href="https://github.com/sunShineLoveMe/ai_bidding_power_grid/blob/main/AI_Bidding_System_Evaluation_Report.md" target="_blank" rel="noopener">View the original</a></li>
+</ol>
+<p class="note">Note: This article uses only content from the public repository and involves no real tender project or company material. I paraphrase only the key points of the repository’s README and evaluation report; the product analysis and the “if I rebuilt it” section are my own judgment. All figures are drawn by me, and illustrative data does not represent real results. This is a translation of the Chinese original, first edition; corrections are welcome.</p>
+</section>
+
+</main>
+</div>
+<footer class="ft">
+  <nav><a href="../index.html?lang=en">Home</a><a href="https://github.com/sunShineLoveMe" target="_blank" rel="noopener">GitHub</a><a href="https://x.com/chirs_pro" target="_blank" rel="noopener">X</a><a href="mailto:chris@zhiyunllm.com">chris@zhiyunllm.com</a></nav>
+  <span>© Chris</span>
+</footer>
+<script>
+(function () {
+  var figs = document.querySelectorAll('figure.fg');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('vis'); io.unobserve(e.target); } }); }, { threshold: .25 });
+    figs.forEach(function (f) { io.observe(f); });
+  } else { figs.forEach(function (f) { f.classList.add('vis'); }); }
+  var links = [].slice.call(document.querySelectorAll('.toc a'));
+  var map = {}; links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var io2 = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { links.forEach(function (a) { a.classList.remove('on'); }); var a = map[e.target.id]; if (a) a.classList.add('on'); } }); }, { rootMargin: '-20% 0px -70% 0px' });
+    Object.keys(map).forEach(function (id) { var el = document.getElementById(id); if (el) io2.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>

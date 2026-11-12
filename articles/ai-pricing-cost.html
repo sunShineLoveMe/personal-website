@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 产品的定价与成本账 · Chris</title>
+<meta name="description" content="AI 功能的成本随用量增长。本文讲有效单位成本怎么算、四个降本杠杆、订阅与按量计价的取舍，以及一个三问选择路径。">
+<meta property="og:title" content="AI 产品的定价与成本账">
+<meta property="og:description" content="AI 功能的成本随用量增长。本文讲有效单位成本怎么算、四个降本杠杆、订阅与按量计价的取舍，以及一个三问选择路径。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2026%2026%27%3E%3Crect%20width%3D%2726%27%20height%3D%2726%27%20rx%3D%276%27%20fill%3D%27%230A0B0F%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%279%27%20fill%3D%27none%27%20stroke%3D%27%23F2F0EA%27%20stroke-opacity%3D%27.7%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%273%27%20fill%3D%27%23FF6A2B%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="alternate" hreflang="en" href="ai-pricing-cost.en.html">
+<link rel="stylesheet" href="../css/article.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+<div class="prog" aria-hidden="true"></div>
+<div class="top"><a class="back" href="../index.html#articles">← 返回首页</a><span class="rt"><a class="alt" href="ai-pricing-cost.en.html" hreflang="en">EN</a><span class="name">Chris</span></span></div>
+<div class="wrap">
+<aside class="toc" aria-label="目录"><b>CONTENTS</b><a href="#s1">01 谁在付钱</a><a href="#s2">02 成本账</a><a href="#s3">03 四个降本杠杆</a><a href="#s4">04 定价模型</a><a href="#s5">05 怎么选</a><a href="#s6">06 成本在下降</a><a href="#s7">07 两个真实项目</a><a href="#s8">08 局限</a><a href="#s9">09 自查清单</a><a href="#refs">参考资料</a></aside>
+<main>
+<header class="hd">
+  <div class="kick"><span>PRICING &amp; COST</span><span>v1 · 第一版</span></div>
+  <h1>AI 产品的<em>定价</em>与成本账</h1>
+  <p class="sub">AI 功能每被使用一次就在花钱。先算清真实成本，再决定订阅、按量还是混合。</p>
+  <div class="meta"><span>作者：Chris</span><span>约 15 分钟阅读</span><span>4 张图 · 2 张表 · 1 份清单</span></div>
+  <div class="abs"><h2>ABSTRACT</h2><p>与传统软件不同，AI 功能的边际成本不为零，且在用户之间差距巨大。本文提出：</p><ol><li>用“有效单位成本”替代账面价格来核算成本；</li><li>先用缓存、批处理、模型分层、上下文裁剪降成本，并用评测集守住质量；</li><li>用“成本是否随用量变、账单是否需要可预测、价值是否可度量”三个问题选择定价模型；</li><li>用成本定下限，用价值定价格，并定期重算。</li></ol></div>
+</header>
+
+<section class="s" id="s1">
+<h2 class="sh"><i>01</i>先问：每一次点击，是谁在付钱</h2>
+<p class="lead">传统软件有一个让人安心的性质：多服务一个用户，边际成本接近于零。定价因此可以几乎只谈价值，成本是后端的事。</p>
+<p>AI 功能打破了这一点。每一次调用都在消耗推理资源，用得越多花得越多，而且不同用户之间的差距可以非常大。Stripe 在其面向创业者的指南里把这个问题称为<strong>毛利压缩</strong>：推理成本的增长速度超过收入时，一个按固定价格付费却跑出远超预期用量的客户，会被用量更低的客户补贴。<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<p>一篇行业文章引用了一个案例：某团队在一个固定订阅的 AI 抽取功能上线后发现，8% 的客户消耗了 61% 的推理成本。<sup class="ref"><a href="#r4">[4]</a></sup> 这是对方的自述，不是普适数字，但它描述的形状很典型：用量分布往往是长尾的，而固定价格对尾部没有任何保护。</p>
+<div class="call"><b class="t">本文的立场</b><p>定价不是“拍一个数”，而是先算出<strong>成本下限</strong>，再决定<strong>怎样把价值转成价格</strong>。成本决定你不能低于哪里，价值决定你能高到哪里。</p></div>
+</section>
+
+<section class="s" id="s2">
+<h2 class="sh"><i>02</i>成本账：账面价格不是你的真实成本</h2>
+<p>在《AI 时代的产品方法论》一文里我提过“有效单位成本”。这里把它展开成一张账。账单上的单次调用价格，只是真实成本的起点：</p>
+<figure class="fg" id="fig1"><div class="figscroll"><svg viewBox="0 0 960 400" role="img" aria-labelledby="p1t p1d" class="svgfig"><title id="p1t">有效单位成本的构成</title><desc id="p1d">瀑布图：单次调用成本为 100，因一次通过率不足带来重试放大加 43，人工复核再加 120，有效单位成本约 263。数值为示意的相对值。</desc><defs><marker id="p1-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><text x="40" y="40" class="t16 tm">同一次调用，账面价格与真实成本的差距</text><line x1="60" y1="330" x2="920" y2="330" class="ln"/><g class="rise" style="--i:0"><rect x="110" y="240.0" width="130" height="90.0" rx="8" fill="#7DB8FF" fill-opacity=".85"/><text x="175" y="228.0" class="t18 bold mid">100</text><text x="175" y="358" class="t16 bold mid">单次调用成本</text><text x="175" y="380" class="t14 tm mid">账单上看到的价格</text></g><g class="rise" style="--i:1"><rect x="330" y="201.3" width="130" height="38.7" rx="8" fill="#FF6A2B" fill-opacity=".85"/><text x="395" y="189.29999999999998" class="t18 bold mid">+43</text><text x="395" y="358" class="t16 bold mid">重试与返工</text><text x="395" y="380" class="t14 tm mid">一次通过率 70% → ×1.43</text></g><g class="rise" style="--i:2"><rect x="550" y="93.3" width="130" height="108.0" rx="8" fill="#FF6A2B" fill-opacity=".85"/><text x="615" y="81.29999999999998" class="t18 bold mid">+120</text><text x="615" y="358" class="t16 bold mid">人工复核</text><text x="615" y="380" class="t14 tm mid">被低估最多的一项</text></g><g class="rise" style="--i:3"><rect x="770" y="93.3" width="130" height="236.7" rx="8" fill="#F2F0EA" fill-opacity=".85"/><text x="835" y="81.29999999999998" class="t18 bold mid">263</text><text x="835" y="358" class="t16 bold mid">有效单位成本</text><text x="835" y="380" class="t14 tm mid">约为账面价格的 2.6 倍</text></g><line x1="240" y1="240.0" x2="330" y2="240.0" class="lnd"/><line x1="460" y1="201.3" x2="550" y2="201.3" class="lnd"/><line x1="680" y1="93.3" x2="770" y2="93.3" class="lnd"/><text x="920" y="40" class="t14 tm end">数值为示意的相对值，非真实统计</text></svg></div><figcaption><b>图 1</b>有效单位成本的构成　账面价格只是起点；重试返工与人工复核往往让真实成本高出一大截。数值为示意的相对值。</figcaption></figure>
+<ul>
+<li><strong>重试与返工。</strong>一次通过率不到 100%，意味着每得到一个可接受的结果，平均要付出不止一次调用。用 70% 的一次通过率举例，成本放大约 1.43 倍，所以“便宜的小模型”未必便宜。</li>
+<li><strong>人工复核。</strong>如果产品的自主权档位是“起草，由人审阅”，那么每个输出都要有人看。人的时间通常比 token 贵得多，一旦算进去，它很可能成为最大的一项。图中数值是为了说明结构而设的示意值，请代入你自己的数据。</li>
+<li><strong>隐形的那一部分。</strong>检索、向量存储、文档解析、监控和评测的运行成本，同样随用量增加，但很少被算进“单次成本”。</li>
+</ul>
+<blockquote>有效单位成本 ≈ 单次调用成本 ÷ 一次通过率 ＋ 人工复核成本 ＋ 分摊的基础设施成本<small>示意性的思考框架，不是行业标准公式</small></blockquote>
+<h3>用成本下限倒推最低价格</h3>
+<p>Freemius 的文章建议先找到成本下限，再从目标毛利率倒推价格：价格至少要覆盖有效单位成本除以（1 减目标毛利率）。<sup class="ref"><a href="#r4">[4]</a></sup> 例如有效单位成本是 1 元、目标毛利率是 60%，那么单位价格不应低于 2.5 元。这个算术很简单，但它把“要不要做免费套餐”“包不包含无限用量”这类讨论拉回了具体数字上。</p>
+</section>
+
+<section class="s" id="s3">
+<h2 class="sh"><i>03</i>先降成本，再谈定价：四个杠杆</h2>
+<p>在改定价之前，通常有更便宜的办法让成本账好看。下面四个杠杆，我按“对产品体验的影响”从小到大排列。</p>
+<figure class="fg" id="fig2"><div class="figscroll"><svg viewBox="0 0 960 380" role="img" aria-labelledby="p3t p3d" class="svgfig"><title id="p3t">输入 token 的相对价格</title><desc id="p3d">以官方文档中的常见倍数为例：标准价格记为100，批处理为50，缓存命中为10，两者叠加为5。</desc><text x="40" y="40" class="t16 tm">输入 token 的相对价格（标准价格 = 100）</text><g class="rise" style="--i:0"><text x="40" y="112" class="t17">标准价格</text><rect x="270" y="80" width="620.0" height="44" rx="8" fill="#7DB8FF" fill-opacity=".9"/><text x="904.0" y="111" class="t18 bold">100</text></g><g class="rise" style="--i:1"><text x="40" y="178" class="t17">批处理</text><rect x="270" y="146" width="310.0" height="44" rx="8" fill="#9EC9FF" fill-opacity=".9"/><text x="594.0" y="177" class="t18 bold">50</text></g><g class="rise" style="--i:2"><text x="40" y="244" class="t17">缓存命中</text><rect x="270" y="212" width="62.0" height="44" rx="8" fill="#FFA070" fill-opacity=".9"/><text x="346.0" y="243" class="t18 bold">10</text></g><g class="rise" style="--i:3"><text x="40" y="310" class="t17">批处理 + 缓存命中</text><rect x="270" y="278" width="31.0" height="44" rx="8" fill="#FF6A2B" fill-opacity=".9"/><text x="315.0" y="309" class="t18 bold">5</text></g><text x="40" y="350" class="t14 tm">倍数以 Anthropic 官方定价文档的常见取值为例，具体模型的倍数不同，请以官方页面为准</text></svg></div><figcaption><b>图 2</b>输入 token 的相对价格　缓存与批处理可以叠加，价格差距可以很大，但前提是任务适合，且质量经评测验证。</figcaption></figure>
+<div class="tw"><table>
+<thead><tr><th>杠杆</th><th>做法</th><th>适用</th><th>代价与注意</th></tr></thead>
+<tbody>
+<tr><td>提示词缓存</td><td>把反复出现的长前缀（系统提示、固定资料）缓存起来，命中时读取价格远低于普通输入<sup class="ref"><a href="#r3">[3]</a></sup></td><td>同一份长上下文被多次使用</td><td>写入缓存比普通输入略贵；缓存有时效；前缀必须一致才会命中</td></tr>
+<tr><td>批处理</td><td>异步提交，官方给出输入输出均 50% 的折扣，处理窗口最长 24 小时<sup class="ref"><a href="#r2">[2]</a></sup></td><td>不要求实时的批量任务，例如离线解析、批量打标</td><td>不适合需要即时反馈的交互；与缓存可叠加</td></tr>
+<tr><td>模型分层</td><td>简单任务用小模型，困难任务才用大模型；先路由再执行</td><td>任务难度差异大的产品</td><td>需要评测来证明“小模型够用”，否则只是赌</td></tr>
+<tr><td>缩短上下文与输出</td><td>只带必要的资料，约束输出长度与格式</td><td>几乎所有产品</td><td>过度裁剪会损伤质量，应以评测集为准</td></tr>
+</tbody></table></div>
+<p class="tcap"><b>表 1</b>四个降本杠杆。折扣倍数与可用条件以官方定价页面为准，且会随模型与时间变化。</p>
+<p>需要强调的是：任何降本措施都必须经过评测集的回归检验。成本降了、通过率也降了，有效单位成本反而可能上升。这也是为什么我把评测放在比定价更靠前的位置。</p>
+</section>
+
+<section class="s" id="s4">
+<h2 class="sh"><i>04</i>订阅、按量、混合、结果：各自在赌什么</h2>
+<p>Stripe 的指南把常见的 AI 定价结构归为几类：分档订阅、按量计费、订阅加按量的混合、按席位、按结果收费等，并提醒大多数产品用的是其中一种或两种的组合。<sup class="ref"><a href="#r1">[1]</a></sup> 我更喜欢从“它在赌什么”来理解它们。</p>
+<figure class="fg" id="fig3"><div class="figscroll"><svg viewBox="0 0 960 420" role="img" aria-labelledby="p2t p2d" class="svgfig"><title id="p2t">订阅与按量计价的收入和成本</title><desc id="p2d">横轴是单个用户的月用量，纵轴是金额。订阅收入是一条水平线，成本随用量上升；两线相交之后，用量越大亏得越多。按量计价的收入线始终高于成本。</desc><defs><marker id="p2-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><polygon points="90,190 495,190 90,300" fill="#7DB8FF" fill-opacity=".14" class="fadein"/><polygon points="495,190 900,190 900,80" fill="#FF6A2B" fill-opacity=".22" class="fadein"/><line x1="90" y1="330" x2="920" y2="330" class="ln" marker-end="url(#p2-a)"/><line x1="90" y1="330" x2="90" y2="40" class="ln" marker-end="url(#p2-a)"/><text x="505" y="366" class="t15 tm mid">单个用户的月用量</text><text transform="translate(40,185) rotate(-90)" class="t15 tm mid">金额</text><line x1="90" y1="300" x2="900" y2="80" class="draw curve" pathLength="1"/><line x1="90" y1="255" x2="900" y2="35" stroke="#FF6A2B" stroke-width="2.2" stroke-dasharray="7 5"/><line x1="90" y1="190" x2="900" y2="190" stroke="#7DB8FF" stroke-width="2.6"/><line x1="495" y1="190" x2="495" y2="330" class="lnd"/><circle cx="495" cy="190" r="6" class="demo"/><text x="495" y="348" class="t14 ta mid">盈亏平衡</text><text x="900" y="214" class="t15 tb end">订阅：收入固定</text><text x="560" y="26" class="t15 ta mid">按量：始终高于成本</text><text x="110" y="168" class="t15 tb">轻度用户：你有盈余</text><text x="650" y="178" class="t15 ta bold">重度用户：被其他人补贴</text><text x="330" y="262" class="t15 mid">推理成本</text></svg></div><figcaption><b>图 3</b>订阅与按量计价的收入和成本　订阅是一条水平线，成本随用量上升；交点右边的亏损，由左边的轻度用户补贴。</figcaption></figure>
+<p>图 3 是理解订阅风险的最短路径：订阅收入是水平线，成本随用量上升。两线交点左边，轻度用户贡献盈余；交点右边，每多一点用量就多亏一点，而这些亏损是由轻度用户的盈余补上的。</p>
+<div class="tw"><table>
+<thead><tr><th>模型</th><th>它在赌什么</th><th>优点</th><th>风险</th></tr></thead>
+<tbody>
+<tr><td>分档订阅</td><td>用户用量不会差太多，或者能被额度约束住</td><td>账单可预测，销售简单，对用户心理负担小</td><td>“无限”用量会形成开放式的成本负债；重度用户拉低整体毛利<sup class="ref"><a href="#r1">[1]</a></sup></td></tr>
+<tr><td>按量计费</td><td>用量与价值正相关，用户接受随用量付费</td><td>收入随成本移动，毛利稳定</td><td>用户担心账单失控；早期使用门槛高</td></tr>
+<tr><td>混合（订阅加额度加超量）</td><td>既要可预测，又要保护毛利</td><td>两头兼顾，企业客户通常更容易接受<sup class="ref"><a href="#r1">[1]</a></sup></td><td>规则复杂，需要把额度、超量说清楚</td></tr>
+<tr><td>积分制</td><td>用户愿意预充值，换取预测性与灵活度</td><td>现金流好，容易按功能差异化定价</td><td>积分与真实价值的换算要保持透明，否则损害信任</td></tr>
+<tr><td>按结果收费</td><td>结果可被明确度量，且归因清楚</td><td>与客户价值直接挂钩</td><td>结果的定义和争议处理成本很高，只适合边界清晰的场景</td></tr>
+</tbody></table></div>
+<p class="tcap"><b>表 2</b>五种定价模型的取舍，综合自 Stripe 与 Freemius 的文章，并加入我的判断。</p>
+</section>
+
+<section class="s" id="s5">
+<h2 class="sh"><i>05</i>怎么选：三个问题</h2>
+<figure class="fg" id="fig4"><div class="figscroll"><svg viewBox="0 0 960 500" role="img" aria-labelledby="p4t p4d" class="svgfig"><title id="p4t">定价模型的选择路径</title><desc id="p4d">先看成本是否随用量变化，再看用户是否需要可预测账单，最后看价值是否可度量。</desc><defs><marker id="p4-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><rect x="310.0" y="22.0" width="340" height="60" rx="14" class="bx hot"/><text x="480" y="58" class="t16 bold mid">成本随用量变化大吗？</text><rect x="50.0" y="155.0" width="280" height="70" rx="14" class="bx"/><text x="190" y="186" class="t16 bold mid">订阅 / 分档套餐</text><text x="190" y="210" class="t14 tm mid">成本基本固定，简单就好</text><rect x="550.0" y="160.0" width="340" height="60" rx="14" class="bx"/><text x="720" y="196" class="t16 bold mid">用户需要可预测的账单吗？</text><rect x="410.0" y="291.0" width="300" height="78" rx="14" class="bx"/><text x="560" y="326" class="t16 bold mid">混合：基础订阅 + 额度</text><text x="560" y="350" class="t14 tm mid">超出部分按量计费</text><rect x="765.0" y="291.0" width="190" height="78" rx="14" class="bx"/><text x="860" y="326" class="t16 bold mid">按量 / 积分</text><text x="860" y="350" class="t14 tm mid">预充值换预测性</text><rect x="200.0" y="416.0" width="560" height="64" rx="14" class="bx"/><text x="480" y="454" class="t16 bold mid">价值可度量、归因清楚时，再考虑按结果收费</text><path d="M420,82 Q190,82 190,155" class="flow" marker-end="url(#p4-a)"/><text x="170" y="118" class="t15 ta bold mid">否</text><path d="M540,82 Q720,82 720,160" class="flow" marker-end="url(#p4-a)"/><text x="750" y="118" class="t15 ta bold mid">是</text><path d="M660,220 Q560,220 560,290" class="flow" marker-end="url(#p4-a)"/><text x="536" y="256" class="t15 ta bold mid">是</text><path d="M780,220 Q860,220 860,290" class="flow" marker-end="url(#p4-a)"/><text x="890" y="256" class="t15 ta bold mid">否</text><path d="M560,370 Q560,448 520,448" class="lnd"/><path d="M860,370 Q860,448 760,448" class="lnd"/></svg></div><figcaption><b>图 4</b>定价模型的选择路径　三个问题依次回答：成本是否随用量变、账单是否需要可预测、价值是否可度量。</figcaption></figure>
+<ol>
+<li><strong>成本随用量变化大吗？</strong>如果不大，用最简单的分档订阅；订阅的好处是用户好理解，别为了“更科学”把它搞复杂。</li>
+<li><strong>用户需要可预测的账单吗？</strong>面向企业或预算有审批流程的客户，通常需要。这时混合模式往往更合适：基础订阅提供可预测性，额度与超量保护毛利。</li>
+<li><strong>价值能否度量、归因是否清楚？</strong>只有在这一点上有把握，才值得考虑按结果收费，否则它会把争议变成产品的一部分。</li>
+</ol>
+<p>在选定模型之后，还有两条我自己的底线：第一，<strong>让用户在花钱之前看得见用量</strong>，用量面板不是锦上添花，而是信任设计的一部分；第二，<strong>永远保留一个能改价的出口</strong>，因为模型和成本变化得比合同快。</p>
+</section>
+
+<section class="s" id="s6">
+<h2 class="sh"><i>06</i>成本在下降，价格不该跟着掉</h2>
+<p>一份行业统计汇总提到，达到 GPT-3.5 水平的推理成本在 2022 年 11 月到 2024 年 10 月之间下降了约 280 倍。<sup class="ref"><a href="#r5">[5]</a></sup> 这类汇总页属于二手整理，数字的口径需要自行核对，但方向几乎没有争议：单位推理成本在持续下降。</p>
+<p>这给“按成本加成”的定价带来一个陷阱。如果你的价格锚定在成本上，成本下降，收入也会被动下降；而竞争对手一旦降价，你很难解释为什么自己不降。更稳的思路是：</p>
+<ul>
+<li><strong>用成本定下限，用价值定价格。</strong>成本告诉你不能低于哪里，用户为什么愿意付钱则由价值决定；</li>
+<li><strong>把成本下降的红利拿来升级体验，而不只是降价。</strong>例如更高的通过率、更快的响应、更多的功能；</li>
+<li><strong>定期重算成本账。</strong>每次换模型、改提示词、调整缓存策略之后，更新一次有效单位成本。</li>
+</ul>
+</section>
+
+<section class="s" id="s7">
+<h2 class="sh"><i>07</i>两个真实项目里的账</h2>
+<h3>招投标工作台：把成本做成可见的功能</h3>
+<p>我做的电力行业标书工作台，在 README 里把“任务记录、模型调用用量与成本记录”列为交付与追踪能力的一部分。<sup class="ref"><a href="#r7">[7]</a></sup> 对一个按项目生成大量长文本的产品来说，这是必须的：没有用量记录，就无法知道一份标书的实际成本，也就无法为它定价。这个项目的细节见另一篇文章《让大模型参与招投标》。</p>
+<h3>Keysuit：成本结构完全不同</h3>
+<p>Keysuit 是一款沙盒内运行、不联网的 macOS 应用，项目规则明确要求它不使用网络。<sup class="ref"><a href="#r6">[6]</a></sup> 这意味着它没有按调用付费的模型推理成本，边际成本结构与上面所有讨论都不同，定价应当围绕价值与分发成本，而不是推理账单。目前它处于免费公测阶段，正式版的价格还没有确定，这也是一个典型的“先验证价值，再定价格”的阶段。</p>
+</section>
+
+<section class="s" id="s8">
+<h2 class="sh"><i>08</i>局限</h2>
+<ul>
+<li><strong>示意数值不是基准。</strong>图 1 的相对值、成本下限的算例，都是为了展示结构，请用自己的数据替换。</li>
+<li><strong>价格与折扣会变化。</strong>提示词缓存的倍数、批处理折扣和各模型价格，请以官方定价页面当天的内容为准；我引用的是写作时能核实到的取值。</li>
+<li><strong>引用中有二手来源。</strong>行业文章给出的案例和统计，口径与样本未必一致，只适合用来理解方向，不适合直接当作事实依据。</li>
+<li><strong>定价不止是成本问题。</strong>品牌、竞争、客户的付费习惯，都会改变最终决定，本文只覆盖了与成本最相关的那部分。</li>
+</ul>
+</section>
+
+<section class="s" id="s9">
+<h2 class="sh"><i>09</i>定价前的十项自查</h2>
+<ul class="chk">
+<li>知道一次可接受结果的有效单位成本，而不只是单次调用价格。</li>
+<li>一次通过率、重试次数和人工复核时间都有真实数据。</li>
+<li>已经试过缓存、批处理、模型分层和上下文裁剪，并用评测集确认质量没有下降。</li>
+<li>画过“订阅 vs 用量”的交点：知道哪一档用户开始亏钱。</li>
+<li>有明确的额度或限速，没有承诺“无限用量”。</li>
+<li>用户在花钱之前能看到自己的用量。</li>
+<li>从目标毛利率倒推过最低价格。</li>
+<li>价格锚定在价值上，成本只是下限。</li>
+<li>每次换模型或改提示词后，会重算成本账。</li>
+<li>价格与额度规则可以在不推翻合同的前提下调整。</li>
+</ul>
+</section>
+
+<section class="s" id="refs">
+<h2 class="sh"><i>REF</i>参考资料</h2>
+<ol class="refs">
+<li id="r1">Stripe. <em>AI pricing models: How the main structures work and when to use them</em>. <a href="https://stripe.com/resources/more/ai-pricing-models" target="_blank" rel="noopener">stripe.com/resources/more/ai-pricing-models</a></li>
+<li id="r2">Anthropic. <em>Pricing</em>（批处理折扣、提示词缓存相关说明）. <a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">platform.claude.com/docs/en/about-claude/pricing</a></li>
+<li id="r3">Anthropic. <em>Prompt caching</em>（缓存读取为基础输入价格的 0.1 倍等说明）. <a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" rel="noopener">platform.claude.com/docs/en/build-with-claude/prompt-caching</a></li>
+<li id="r4">Freemius. <em>AI app pricing models: How to choose the right one without getting destroyed by inference costs</em>. <a href="https://freemius.com/blog/ai-app-pricing-model/" target="_blank" rel="noopener">freemius.com/blog/ai-app-pricing-model/</a></li>
+<li id="r5">Orb. <em>AI pricing statistics</em>（二手整理）. <a href="https://www.withorb.com/blog/ai-pricing-statistics" target="_blank" rel="noopener">withorb.com/blog/ai-pricing-statistics</a></li>
+<li id="r6">Keysuit 项目内部文档（AGENTS.md、README）。</li>
+<li id="r7">sunShineLoveMe/ai_bidding_power_grid，README. <a href="https://github.com/sunShineLoveMe/ai_bidding_power_grid" target="_blank" rel="noopener">github.com/sunShineLoveMe/ai_bidding_power_grid</a></li>
+</ol>
+<p class="note">说明：图示均为自绘，数值为示意。引用处只转述观点，未大段引用原文。这是第一版，欢迎指出错误。</p>
+</section>
+
+</main>
+</div>
+<footer class="ft">
+  <nav><a href="../index.html">首页</a><a href="https://github.com/sunShineLoveMe" target="_blank" rel="noopener">GitHub</a><a href="https://x.com/chirs_pro" target="_blank" rel="noopener">X</a><a href="mailto:chris@zhiyunllm.com">chris@zhiyunllm.com</a></nav>
+  <span>© Chris</span>
+</footer>
+<script>
+(function () {
+  var figs = document.querySelectorAll('figure.fg');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('vis'); io.unobserve(e.target); } }); }, { threshold: .25 });
+    figs.forEach(function (f) { io.observe(f); });
+  } else { figs.forEach(function (f) { f.classList.add('vis'); }); }
+  var links = [].slice.call(document.querySelectorAll('.toc a'));
+  var map = {}; links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var io2 = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { links.forEach(function (a) { a.classList.remove('on'); }); var a = map[e.target.id]; if (a) a.classList.add('on'); } }); }, { rootMargin: '-20% 0px -70% 0px' });
+    Object.keys(map).forEach(function (id) { var el = document.getElementById(id); if (el) io2.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>

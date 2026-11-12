@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chris · AI 产品思考者</title>
+<meta name="description" content="Chris，AI 产品思考者：产品经理，也是技术开发者。这里收录我关于 LLM、RAG、Agent 和 Voice AI 的思考、项目与文章。">
+<meta name="theme-color" content="#0A0B0F">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2026%2026%27%3E%3Crect%20width%3D%2726%27%20height%3D%2726%27%20rx%3D%276%27%20fill%3D%27%230A0B0F%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%279%27%20fill%3D%27none%27%20stroke%3D%27%23F2F0EA%27%20stroke-opacity%3D%27.7%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%273%27%20fill%3D%27%23FF6A2B%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="root" class="zh" style="background: #0A0B0F; color: #F2F0EA; font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; overflow: hidden">
+
+  <header style="position: relative; z-index: 2; max-width: 1240px; margin: 0 auto; padding: 16px clamp(20px, 5vw, 64px); box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+    <a href="#top" style="display: flex; align-items: center; gap: 12px; min-height: 44px; font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: .02em">
+      <svg aria-hidden="true" width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.5" stroke="#F2F0EA" stroke-opacity=".5"></circle><circle cx="13" cy="13" r="6.5" stroke="#F2F0EA" stroke-opacity=".8"></circle><circle cx="13" cy="13" r="2.5" fill="var(--accent)"></circle></svg>
+      Chris
+    </a>
+    <nav aria-label="主导航" data-i18n-attr="aria-label:nav_label" style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 15px">
+      <a class="navlink" href="#lens" style="padding: 12px" data-i18n="nav_lens">视角</a>
+      <a class="navlink" href="#map" style="padding: 12px" data-i18n="nav_map">知识</a>
+      <a class="navlink" href="#projects" style="padding: 12px" data-i18n="nav_projects">项目</a>
+      <a class="navlink" href="#articles" style="padding: 12px" data-i18n="nav_articles">文章</a>
+      <div role="group" aria-label="Language / 语言" style="display: flex; align-items: center; margin-left: 12px; padding: 3px; border: 1px solid rgba(242,240,234,.2); border-radius: 999px">
+        <button type="button" class="lang on" data-lang="zh" aria-pressed="true">中文</button>
+        <button type="button" class="lang" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+    </nav>
+  </header>
+
+  <section id="top" style="position: relative">
+    <div class="gridbg" aria-hidden="true" style="position: absolute; inset: 0"></div>
+    <div class="spot" aria-hidden="true" style="position: absolute; inset: 0"></div>
+    <canvas id="orbit-canvas" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block"></canvas>
+    <div style="position: relative; max-width: 1240px; margin: 0 auto; padding: 72px clamp(20px, 5vw, 64px) 96px; box-sizing: border-box; display: flex; align-items: center; min-height: 760px">
+      <div style="max-width: 620px; min-width: 0; display: flex; flex-direction: column; gap: 30px">
+        <p class="fade" style="margin: 0; display: flex; align-items: center; gap: 12px; font-family: 'JetBrains Mono', 'Noto Sans SC', monospace; font-size: 13px; letter-spacing: .16em; color: #9A9CA6">
+          <span aria-hidden="true" style="width: 28px; height: 1px; background: var(--accent)"></span><span data-i18n="role">AI 产品思考者</span>
+        </p>
+        <h1 style="margin: 0; font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: clamp(48px, 7.6vw, 112px); line-height: 1.1; letter-spacing: -.01em">
+          <span class="ln"><span data-i18n="h1a">想清楚，</span></span>
+          <span class="ln d2"><span><span data-i18n="h1pre">再</span><span class="mark" data-i18n="h1mark">做出来</span><span data-i18n="h1post">。</span></span></span>
+        </h1>
+        <p class="fade" style="margin: 0; display: flex; flex-wrap: wrap; gap: 0 .4em; font-size: 20px; line-height: 1.6em">
+          <span data-i18n="iam">我是 Chris，</span>
+          <span class="rot" style="color: var(--accent)"><span><b data-i18n="r1">AI 产品思考者</b><b data-i18n="r2">产品经理</b><b data-i18n="r3">技术开发者</b><b aria-hidden="true" data-i18n="r1">AI 产品思考者</b></span></span>
+        </p>
+        <p class="fade" style="margin: 0; max-width: 32em; font-size: 17px; line-height: 1.85; color: #C9C8C4; text-wrap: pretty" data-i18n="intro">用产品经理的眼光判断什么值得做，用开发者的双手把它做出来。这里收录我关于 LLM、RAG、Agent 和 Voice AI 的思考、项目与方法。</p>
+        <div class="fade" style="display: flex; flex-wrap: wrap; align-items: center; gap: 28px">
+          <a class="btn" href="#keysuit" style="display: inline-flex; align-items: center; min-height: 52px; padding: 0 30px; box-sizing: border-box; border-radius: 999px; background: var(--accent); color: #0A0B0F; font-weight: 700; font-size: 16px" data-i18n="see">看看我做过什么</a>
+          <a class="ghost" href="#articles" style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 16px">
+            <span data-i18n="read">读我的文章</span>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h12M10 4l5 5-5 5"></path></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div aria-hidden="true" style="position: relative; border-top: 1px solid rgba(242,240,234,.12); border-bottom: 1px solid rgba(242,240,234,.12); padding: 28px 0; overflow: hidden; background: #0A0B0F">
+    <div class="mq" style="font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: clamp(40px, 6vw, 80px); line-height: 1.1; white-space: nowrap">
+      <div style="display: flex; align-items: center; gap: 48px; padding-right: 48px">
+        <span>LLM</span><span style="color: var(--accent)">/</span><span class="outline">RAG</span><span style="color: var(--accent)">/</span><span>Agent</span><span style="color: var(--accent)">/</span><span class="outline">Voice AI</span><span style="color: var(--accent)">/</span><span>Python</span><span style="color: var(--accent)">/</span><span class="outline">TypeScript</span><span style="color: var(--accent)">/</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 48px; padding-right: 48px">
+        <span>LLM</span><span style="color: var(--accent)">/</span><span class="outline">RAG</span><span style="color: var(--accent)">/</span><span>Agent</span><span style="color: var(--accent)">/</span><span class="outline">Voice AI</span><span style="color: var(--accent)">/</span><span>Python</span><span style="color: var(--accent)">/</span><span class="outline">TypeScript</span><span style="color: var(--accent)">/</span>
+      </div>
+    </div>
+  </div>
+
+  <section id="keysuit" style="max-width: 1240px; margin: 0 auto; padding: 120px clamp(20px, 5vw, 64px) 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 48px">
+    <div class="rv" style="display: flex; flex-direction: column; gap: 16px">
+      <p style="margin: 0; display: flex; align-items: center; gap: 12px; font-family: 'JetBrains Mono', 'Noto Sans SC', monospace; font-size: 13px; letter-spacing: .16em; color: var(--accent)"><span aria-hidden="true" style="width: 28px; height: 1px; background: var(--accent)"></span><span data-i18n="ks_k">代表作品</span></p>
+      <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px">
+        <h2 style="margin: 0; font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: clamp(44px, 6.4vw, 92px); line-height: 1; letter-spacing: -.02em">Keysuit</h2>
+        <p style="margin: 0; font-size: 20px; color: #C9C8C4" data-i18n="ks_tag">给你的 Mac 换一身声音。</p>
+      </div>
+    </div>
+    <div class="rv" style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 40px">
+      <figure class="vid" style="flex: 1.8 1 520px; min-width: 0; margin: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="position: relative; aspect-ratio: 16 / 9; border: 1px solid rgba(242,240,234,.16); border-radius: 22px; overflow: hidden; background: #000">
+          <video controls="controls" preload="none" poster="assets/keysuit/poster.webp" src="assets/keysuit/keysuit-film-0.5-720.mp4" aria-label="Keysuit 0.5 产品影片 · 50 秒" data-i18n-attr="aria-label:ks_video" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; background: #000"></video>
+        </div>
+        <figcaption style="font-family: 'JetBrains Mono', 'Noto Sans SC', monospace; font-size: 13px; color: #9A9CA6" data-i18n="ks_video">Keysuit 0.5 产品影片 · 50 秒</figcaption>
+      </figure>
+      <div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 32px">
+        <div style="display: flex; flex-direction: column; gap: 20px">
+          <p style="margin: 0; font-size: 19px; line-height: 1.8; text-wrap: pretty" data-i18n="ks_d">Keysuit（声装）是我做的一款 macOS 菜单栏 App：给键盘配上打字音，在本机统计打字量，连续打字太久时提醒你休息。</p>
+          <p style="margin: 0; font-size: 16px; line-height: 1.8; color: #9A9CA6; text-wrap: pretty" data-i18n="ks_d2">从需求文档、技术方案、界面设计到官网和这支影片，我完整走了一遍。</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <a class="btn" href="https://keysuit.app/" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 28px; box-sizing: border-box; border-radius: 999px; background: var(--accent); color: #0A0B0F; font-weight: 700; font-size: 16px"><span data-i18n="ks_site">访问 keysuit.app</span>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15L15 5M7 5h8v8"></path></svg>
+          </a>
+          <span style="font-family: 'JetBrains Mono', 'Noto Sans SC', monospace; font-size: 13px; color: #9A9CA6" data-i18n="ks_meta">免费公开测试版 0.5.3 · macOS 13+</span>
+        </div>
+      </div>
+    </div>
+    <div class="rv" style="display: flex; flex-wrap: wrap; align-items: center; gap: 48px">
+      <div class="shot" style="flex: 0 1 300px; min-width: 0; margin: 0 auto">
+        <img data-only="zh" src="assets/keysuit/panel-zh.webp" alt="声装菜单栏面板：今日敲击 4,259、26 周活跃度和主题选择" width="800" height="1484" style="display: block; width: 100%; height: auto; border-radius: 22px; box-shadow: 0 40px 80px -30px rgba(0,0,0,.9)">
+        <img data-only="en" src="assets/keysuit/panel-en.webp" alt="Keysuit menu bar panel with today's keystroke count, a 26-week activity calendar and the theme picker" width="800" height="1484" style="display: block; width: 100%; height: auto; border-radius: 22px; box-shadow: 0 40px 80px -30px rgba(0,0,0,.9)">
+      </div>
+      <ul style="flex: 2 1 420px; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column" data-list="ksFeatures">
+      </ul>
+    </div>
+  </section>
+
+  <section id="lens" style="max-width: 1240px; margin: 0 auto; padding: 120px clamp(20px, 5vw, 64px) 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 56px">
+    <h2 class="rv" style="margin: 0; font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: clamp(28px, 3.4vw, 44px); letter-spacing: -.01em" data-i18n="lens_h">两种视角，一个人</h2>
+    <div class="rv" style="display: flex; flex-wrap: wrap; align-items: center; gap: 56px">
+      <div aria-hidden="true" style="flex: 1 1 340px; min-width: 0; max-width: 480px; margin: 0 auto; aspect-ratio: 3 / 2; position: relative">
+        <div class="va" style="position: absolute; left: 0; top: 0; height: 100%; aspect-ratio: 1 / 1; box-sizing: border-box; border-radius: 50%; border: 1px solid rgba(242,240,234,.6); background: rgba(242,240,234,.03)"></div>
+        <div class="vb" style="position: absolute; right: 0; top: 0; height: 100%; aspect-ratio: 1 / 1; box-sizing: border-box; border-radius: 50%; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent)"></div>
+        <div class="vglow" style="position: absolute; left: 50%; top: 50%; width: 30%; aspect-ratio: 1 / 1; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 55%, transparent), transparent 70%)"></div>
+        <span style="position: absolute; left: 12%; top: 50%; transform: translateY(-50%); font-size: 17px; font-weight: 500" data-i18n="v_a">产品</span>
+        <span style="position: absolute; right: 12%; top: 50%; transform: translateY(-50%); font-size: 17px; font-weight: 500" data-i18n="v_b">技术</span>
+        <span style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-size: 15px; font-weight: 700; white-space: nowrap" data-i18n="v_c">AI 产品</span>
+      </div>
+      <div style="flex: 1.4 1 420px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 40px">
+        <div style="display: flex; flex-direction: column; gap: 18px; border-top: 1px solid rgba(242,240,234,.5); padding-top: 24px">
+          <p style="margin: 0; font-family: 'JetBrains Mono', 'Noto Sans SC', monospace; font-size: 13px; letter-spacing: .1em; color: #9A9CA6" data-i18n="pl_k">产品视角</p>
+          <h3 style="margin: 0; font-size: 24px; font-weight: 700" data-i18n="pl_h">先问该不该做</h3>
+          <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; font-size: 16px; line-height: 1.7; color: #C9C8C4">
+            <li data-i18n="pl_1">这个问题真的存在吗？</li><li data-i18n="pl_2">谁会为它付出时间或钱？</li><li data-i18n="pl_3">AI 在这里是必需，还是装饰？</li>
+          </ul>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 18px; border-top: 1px solid var(--accent); padding-top: 24px">
+          <p style="margin: 0; font-family: 'JetBrains Mono', 'Noto Sans SC', monospace; font-size: 13px; letter-spacing: .1em; color: var(--accent)" data-i18n="el_k">技术视角</p>
+          <h3 style="margin: 0; font-size: 24px; font-weight: 700" data-i18n="el_h">再问怎么做成</h3>
+          <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; font-size: 16px; line-height: 1.7; color: #C9C8C4">
+            <li data-i18n="el_1">现有模型能稳定做到吗？</li><li data-i18n="el_2">数据、成本和延迟撑得住吗？</li><li data-i18n="el_3">能不能先做出一个可用的最小版本？</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="method" style="max-width: 1240px; margin: 0 auto; padding: 120px clamp(20px, 5vw, 64px) 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 56px">
+    <h2 class="rv" style="margin: 0; font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: clamp(28px, 3.4vw, 44px); letter-spacing: -.01em" data-i18n="method_h">从想法到上线</h2>
+    <div class="rv" style="position: relative; padding-top: 6px">
+      <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 11px; height: 1px; background: rgba(242,240,234,.2)">
+        <div class="runner" style="position: absolute; top: -2px; width: 90px; height: 5px; margin-left: -90px; border-radius: 3px; background: linear-gradient(90deg, transparent, var(--accent))"></div>
+      </div>
+      <ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 40px 32px" data-list="steps">
+      </ol>
+    </div>
+  </section>
+
+  <section id="map" style="max-width: 1240px; margin: 0 auto; padding: 120px clamp(20px, 5vw, 64px) 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 48px">
+    <div class="rv" style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="margin: 0; font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: clamp(28px, 3.4vw, 44px); letter-spacing: -.01em" data-i18n="map_h">知识地图</h2>
+      <p style="margin: 0; font-size: 17px; line-height: 1.8; color: #9A9CA6" data-i18n="map_p">按主题整理的文章、项目和笔记。</p>
+    </div>
+    <div class="rv" data-glow style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 20px" data-list="topics">
+    </div>
+  </section>
+
+  <section id="projects" style="max-width: 1240px; margin: 0 auto; padding: 120px clamp(20px, 5vw, 64px) 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 48px">
+    <div class="rv" style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 16px">
+      <h2 style="margin: 0; font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: clamp(28px, 3.4vw, 44px); letter-spacing: -.01em" data-i18n="proj_h">精选项目</h2>
+      <a class="ghost" href="https://github.com/sunShineLoveMe" style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; color: #9A9CA6"><span data-i18n="proj_all">GitHub 全部项目</span>
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h12M10 4l5 5-5 5"></path></svg>
+      </a>
+    </div>
+    <div class="rv" data-glow style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 24px" data-list="projects">
+    </div>
+    <p class="rv" style="margin: 0; display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 15px; color: #9A9CA6">
+      <span data-i18n="also">其他作品</span>
+      <span><span style="color: #F2F0EA">Quiet Wonder</span> · <span data-i18n="also_q">YouTube Shorts 频道</span></span>
+    </p>
+  </section>
+
+  <section id="articles" style="max-width: 1240px; margin: 0 auto; padding: 120px clamp(20px, 5vw, 64px) 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+    <div class="rv" style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 16px">
+      <h2 style="margin: 0; font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; font-weight: 700; font-size: clamp(28px, 3.4vw, 44px); letter-spacing: -.01em" data-i18n="art_h">最新文章</h2>
+      <a class="ghost" href="#articles" style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; color: #9A9CA6"><span data-i18n="art_all">全部文章</span>
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h12M10 4l5 5-5 5"></path></svg>
+      </a>
+    </div>
+    <div class="rv" style="display: flex; flex-direction: column; border-top: 1px solid rgba(242,240,234,.12)" data-list="articles">
+    </div>
+  </section>
+
+  <footer id="contact" style="position: relative; margin-top: 140px; border-top: 1px solid rgba(242,240,234,.12)">
+    <div style="max-width: 1240px; margin: 0 auto; padding: 64px clamp(20px, 5vw, 64px) 0; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 32px">
+      <div style="display: flex; flex-direction: column; gap: 12px; max-width: 30em">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700" data-i18n="contact_h">保持联系</h2>
+        <p style="margin: 0; font-size: 15px; line-height: 1.8; color: #9A9CA6" data-i18n="contact_p">想交流想法，或者聊聊合作，发邮件给我就行。</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 15px">
+        <a href="mailto:chris@zhiyunllm.com" style="padding: 10px 0">chris@zhiyunllm.com</a>
+        <a href="https://github.com/sunShineLoveMe" style="padding: 10px 0">github.com/sunShineLoveMe</a>
+        <a href="https://x.com/chirs_pro" style="padding: 10px 0">x.com/chirs_pro</a>
+      </div>
+    </div>
+    <div class="word" aria-hidden="true" style="max-width: 1240px; margin: 0 auto; padding: 40px clamp(20px, 5vw, 64px) 0; box-sizing: border-box; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(88px, 23vw, 330px); line-height: .9; letter-spacing: -.03em; white-space: nowrap">CHRIS</div>
+    <div style="max-width: 1240px; margin: 0 auto; padding: 24px clamp(20px, 5vw, 64px) 32px; box-sizing: border-box; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: 14px; color: #9A9CA6">
+      <span>© 2026 Chris</span>
+      <span data-i18n="foot">想清楚，再做出来。</span>
+    </div>
+  </footer>
+
+</div>
+<script src="js/main.js"></script>
+</body>
+</html>

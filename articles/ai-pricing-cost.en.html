@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Pricing and Cost Ledger of AI Products · Chris</title>
+<meta name="description" content="AI features cost more the more they are used. How to compute effective unit cost, four cost-cutting levers, the trade-offs between subscription and usage-based pricing, and a three-question path for choosing.">
+<meta property="og:title" content="The Pricing and Cost Ledger of AI Products">
+<meta property="og:description" content="AI features cost more the more they are used. How to compute effective unit cost, four cost-cutting levers, the trade-offs between subscription and usage-based pricing, and a three-question path for choosing.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2026%2026%27%3E%3Crect%20width%3D%2726%27%20height%3D%2726%27%20rx%3D%276%27%20fill%3D%27%230A0B0F%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%279%27%20fill%3D%27none%27%20stroke%3D%27%23F2F0EA%27%20stroke-opacity%3D%27.7%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%273%27%20fill%3D%27%23FF6A2B%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="alternate" hreflang="zh-CN" href="ai-pricing-cost.html">
+<link rel="stylesheet" href="../css/article.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+<div class="prog" aria-hidden="true"></div>
+<div class="top"><a class="back" href="../index.html?lang=en#articles">← Back to home</a><span class="rt"><a class="alt" href="ai-pricing-cost.html" hreflang="zh-CN">中文</a><span class="name">Chris</span></span></div>
+<div class="wrap">
+<aside class="toc" aria-label="Contents"><b>CONTENTS</b><a href="#s1">01 Who pays</a><a href="#s2">02 The cost ledger</a><a href="#s3">03 Four cost levers</a><a href="#s4">04 Pricing models</a><a href="#s5">05 How to choose</a><a href="#s6">06 Falling costs</a><a href="#s7">07 Two real projects</a><a href="#s8">08 Limitations</a><a href="#s9">09 Checklist</a><a href="#refs">References</a></aside>
+<main>
+<header class="hd">
+  <div class="kick"><span>PRICING &amp; COST</span><span>v1 · First edition</span></div>
+  <h1>The <em>Pricing</em> and Cost Ledger of AI Products</h1>
+  <p class="sub">An AI feature spends money every time it is used. Work out the real cost first, then decide between subscription, usage-based and hybrid.</p>
+  <div class="meta"><span>Author: Chris</span><span>About 15 min read</span><span>4 figures · 2 tables · 1 checklist</span></div>
+  <div class="abs"><h2>ABSTRACT</h2><p>Unlike traditional software, an AI feature’s marginal cost is not zero, and it varies enormously between users. This article proposes:</p><ol><li>counting cost by “effective unit cost” instead of the sticker price;</li><li>cutting cost first with caching, batching, model tiering and context trimming, while guarding quality with an eval set;</li><li>choosing a pricing model with three questions: does cost vary with usage, does the bill need to be predictable, can value be measured;</li><li>using cost for the floor and value for the price, and recomputing regularly.</li></ol></div>
+</header>
+
+<section class="s" id="s1">
+<h2 class="sh"><i>01</i>First ask: who pays for every click</h2>
+<p class="lead">Traditional software has a reassuring property: serving one more user costs close to nothing at the margin. Pricing can therefore be almost entirely about value, and cost is a back-end matter.</p>
+<p>AI features break this. Every call consumes inference resources; the more it is used, the more it costs, and the gap between users can be very large. In its guide for founders, Stripe calls this problem <strong>margin compression</strong>: when inference costs grow faster than revenue, a customer who pays a flat price but runs far more usage than expected is subsidized by customers who use less.<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<p>One industry article cites a case: after a team launched an AI extraction feature on a flat subscription, 8% of customers were consuming 61% of the inference cost.<sup class="ref"><a href="#r4">[4]</a></sup> That is the company’s own account, not a universal number, but the shape it describes is typical: usage distributions are often long-tailed, and a fixed price offers no protection against the tail.</p>
+<div class="call"><b class="t">The stance of this article</b><p>Pricing is not “pick a number.” First work out the <strong>cost floor</strong>, then decide <strong>how to turn value into price</strong>. Cost decides how low you cannot go; value decides how high you can go.</p></div>
+</section>
+
+<section class="s" id="s2">
+<h2 class="sh"><i>02</i>The cost ledger: the sticker price is not your real cost</h2>
+<p>In “Product Method for the AI Era” I introduced “effective unit cost.” Here I expand it into a ledger. The per-call price on the invoice is only the starting point of the real cost:</p>
+<figure class="fg" id="fig1"><div class="figscroll"><svg viewBox="0 0 960 400" role="img" aria-labelledby="p1t p1d" class="svgfig"><title id="p1t">Composition of the effective unit cost</title><desc id="p1d">Waterfall chart: a single call costs 100; an insufficient first-pass rate adds 43 for retries; human review adds 120; the effective unit cost is about 263. Values are illustrative relative numbers.</desc><defs><marker id="p1-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><text x="40" y="40" class="t16 tm">The same call: sticker price vs. real cost</text><line x1="60" y1="330" x2="920" y2="330" class="ln"/><g class="rise" style="--i:0"><rect x="110" y="240.0" width="130" height="90.0" rx="8" fill="#7DB8FF" fill-opacity=".85"/><text x="175" y="228.0" class="t18 bold mid">100</text><text x="175" y="358" class="t16 bold mid">Single-call cost</text><text x="175" y="380" class="t14 tm mid">The price on the invoice</text></g><g class="rise" style="--i:1"><rect x="330" y="201.3" width="130" height="38.7" rx="8" fill="#FF6A2B" fill-opacity=".85"/><text x="395" y="189.29999999999998" class="t18 bold mid">+43</text><text x="395" y="358" class="t16 bold mid">Retries &amp; rework</text><text x="395" y="380" class="t14 tm mid">First-pass rate 70% → ×1.43</text></g><g class="rise" style="--i:2"><rect x="550" y="93.3" width="130" height="108.0" rx="8" fill="#FF6A2B" fill-opacity=".85"/><text x="615" y="81.29999999999998" class="t18 bold mid">+120</text><text x="615" y="358" class="t16 bold mid">Human review</text><text x="615" y="380" class="t14 tm mid">The most underestimated item</text></g><g class="rise" style="--i:3"><rect x="770" y="93.3" width="130" height="236.7" rx="8" fill="#F2F0EA" fill-opacity=".85"/><text x="835" y="81.29999999999998" class="t18 bold mid">263</text><text x="835" y="358" class="t16 bold mid">Effective unit cost</text><text x="835" y="380" class="t14 tm mid">About 2.6× the sticker price</text></g><line x1="240" y1="240.0" x2="330" y2="240.0" class="lnd"/><line x1="460" y1="201.3" x2="550" y2="201.3" class="lnd"/><line x1="680" y1="93.3" x2="770" y2="93.3" class="lnd"/><text x="920" y="40" class="t14 tm end">Illustrative relative values, not real data</text></svg></div><figcaption><b>Fig. 1</b>Composition of the effective unit cost. The sticker price is only the starting point; retries and human review often push the real cost far higher. Values are illustrative relative numbers.</figcaption></figure>
+<ul>
+<li><strong>Retries and rework.</strong> A first-pass rate below 100% means that for each acceptable result you pay for more than one call on average. Take a 70% first-pass rate: cost is amplified about 1.43 times, so a “cheap small model” is not necessarily cheap.</li>
+<li><strong>Human review.</strong> If the product’s autonomy level is “draft, reviewed by a person,” every output needs someone to look at it. A person’s time is usually far more expensive than tokens, and once counted it may well become the largest item. The figures in the chart are illustrative values chosen to show the structure; substitute your own data.</li>
+<li><strong>The hidden part.</strong> Running costs for retrieval, vector storage, document parsing, monitoring and evals also rise with usage, but are rarely counted in “cost per call.”</li>
+</ul>
+<blockquote>Effective unit cost ≈ cost per call ÷ first-pass rate + human review cost + allocated infrastructure cost<small>A framework for thinking, not an industry-standard formula</small></blockquote>
+<h3>Work back from the cost floor to a minimum price</h3>
+<p>Freemius suggests first finding the cost floor, then working back from a target gross margin to a price: the price must be at least the effective unit cost divided by (1 minus the target gross margin).<sup class="ref"><a href="#r4">[4]</a></sup> For example, if the effective unit cost is 1 yuan and the target gross margin is 60%, the unit price should not be below 2.5 yuan. The arithmetic is simple, but it pulls discussions such as “should we have a free tier” or “should we include unlimited usage” back to concrete numbers.</p>
+</section>
+
+<section class="s" id="s3">
+<h2 class="sh"><i>03</i>Cut cost before touching price: four levers</h2>
+<p>Before changing pricing, there are usually cheaper ways to make the cost ledger look better. I order the four levers below from least to most impact on product experience.</p>
+<figure class="fg" id="fig2"><div class="figscroll"><svg viewBox="0 0 960 380" role="img" aria-labelledby="p3t p3d" class="svgfig"><title id="p3t">Relative price of input tokens</title><desc id="p3d">Using typical multipliers from the official docs as an example: standard price is 100, batch is 50, a cache hit is 10, and both together are 5.</desc><text x="40" y="40" class="t16 tm">Relative price of input tokens (standard price = 100)</text><g class="rise" style="--i:0"><text x="40" y="112" class="t17">Standard price</text><rect x="270" y="80" width="620.0" height="44" rx="8" fill="#7DB8FF" fill-opacity=".9"/><text x="904.0" y="111" class="t18 bold">100</text></g><g class="rise" style="--i:1"><text x="40" y="178" class="t17">Batch</text><rect x="270" y="146" width="310.0" height="44" rx="8" fill="#9EC9FF" fill-opacity=".9"/><text x="594.0" y="177" class="t18 bold">50</text></g><g class="rise" style="--i:2"><text x="40" y="244" class="t17">Cache hit</text><rect x="270" y="212" width="62.0" height="44" rx="8" fill="#FFA070" fill-opacity=".9"/><text x="346.0" y="243" class="t18 bold">10</text></g><g class="rise" style="--i:3"><text x="40" y="310" class="t17">Batch + cache hit</text><rect x="270" y="278" width="31.0" height="44" rx="8" fill="#FF6A2B" fill-opacity=".9"/><text x="315.0" y="309" class="t18 bold">5</text></g><text x="40" y="350" class="t14 tm">Multipliers are typical values from Anthropic’s official pricing docs; they differ by model, so check the official page</text></svg></div><figcaption><b>Fig. 2</b>Relative price of input tokens. Caching and batching can be stacked and the price gap can be large, but only if the task suits them and quality is validated by evals.</figcaption></figure>
+<div class="tw"><table>
+<thead><tr><th>Lever</th><th>What to do</th><th>Suited for</th><th>Costs and cautions</th></tr></thead>
+<tbody>
+<tr><td>Prompt caching</td><td>Cache long prefixes that recur (system prompt, fixed reference material); on a hit, the read price is far below normal input<sup class="ref"><a href="#r3">[3]</a></sup></td><td>The same long context used many times</td><td>Writing to the cache costs slightly more than normal input; caches expire; the prefix must be identical to hit</td></tr>
+<tr><td>Batch processing</td><td>Submit asynchronously; the official docs give a 50% discount on both input and output, with a processing window of up to 24 hours<sup class="ref"><a href="#r2">[2]</a></sup></td><td>Non-real-time bulk jobs, such as offline parsing or bulk tagging</td><td>Not for interactions that need instant feedback; can be stacked with caching</td></tr>
+<tr><td>Model tiering</td><td>Small models for simple tasks, big models only for hard ones; route first, then execute</td><td>Products whose task difficulty varies widely</td><td>You need evals to prove the small model is enough, otherwise it is only a gamble</td></tr>
+<tr><td>Shorter context and output</td><td>Carry only the necessary material, constrain output length and format</td><td>Almost every product</td><td>Over-trimming can hurt quality; let the eval set decide</td></tr>
+</tbody></table></div>
+<p class="tcap"><b>Table 1</b>Four cost-cutting levers. Discount multipliers and conditions are as per the official pricing pages, and change with model and time.</p>
+<p>It is worth stressing: any cost-cutting measure must pass a regression check against the eval set. If cost falls and the pass rate falls too, the effective unit cost can actually rise. That is why I put evals ahead of pricing.</p>
+</section>
+
+<section class="s" id="s4">
+<h2 class="sh"><i>04</i>Subscription, usage, hybrid, outcome: what each one bets on</h2>
+<p>Stripe’s guide groups the common AI pricing structures into tiered subscription, usage-based billing, a hybrid of subscription plus usage, per-seat, outcome-based and others, and notes that most AI products use one of them or a combination of two.<sup class="ref"><a href="#r1">[1]</a></sup> I prefer to understand them by “what each one is betting on.”</p>
+<figure class="fg" id="fig3"><div class="figscroll"><svg viewBox="0 0 960 420" role="img" aria-labelledby="p2t p2d" class="svgfig"><title id="p2t">Revenue and cost: subscription vs. usage-based pricing</title><desc id="p2d">The horizontal axis is one user’s monthly usage; the vertical axis is money. Subscription revenue is a flat line while cost rises with usage; past the crossing point, more usage means a bigger loss. The usage-based revenue line stays above cost.</desc><defs><marker id="p2-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><polygon points="90,190 495,190 90,300" fill="#7DB8FF" fill-opacity=".14" class="fadein"/><polygon points="495,190 900,190 900,80" fill="#FF6A2B" fill-opacity=".22" class="fadein"/><line x1="90" y1="330" x2="920" y2="330" class="ln" marker-end="url(#p2-a)"/><line x1="90" y1="330" x2="90" y2="40" class="ln" marker-end="url(#p2-a)"/><text x="505" y="366" class="t15 tm mid">Monthly usage per user</text><text transform="translate(40,185) rotate(-90)" class="t15 tm mid">Amount</text><line x1="90" y1="300" x2="900" y2="80" class="draw curve" pathLength="1"/><line x1="90" y1="255" x2="900" y2="35" stroke="#FF6A2B" stroke-width="2.2" stroke-dasharray="7 5"/><line x1="90" y1="190" x2="900" y2="190" stroke="#7DB8FF" stroke-width="2.6"/><line x1="495" y1="190" x2="495" y2="330" class="lnd"/><circle cx="495" cy="190" r="6" class="demo"/><text x="495" y="348" class="t14 ta mid">Break-even</text><text x="900" y="214" class="t15 tb end">Subscription: fixed revenue</text><text x="560" y="26" class="t15 ta mid">Usage-based: always above cost</text><text x="110" y="168" class="t15 tb">Light users: you profit</text><text x="650" y="178" class="t15 ta bold">Heavy users: subsidized</text><text x="330" y="262" class="t15 mid">Inference cost</text></svg></div><figcaption><b>Fig. 3</b>Revenue and cost: subscription vs. usage-based pricing. Subscription is a flat line while cost rises with usage; the loss to the right of the crossing is subsidized by light users on the left.</figcaption></figure>
+<p>Figure 3 is the shortest path to understanding the risk of subscriptions: subscription revenue is a flat line, while cost rises with usage. To the left of the crossing point, light users contribute a surplus; to the right, every extra bit of usage adds to the loss, and those losses are covered by the light users’ surplus.</p>
+<div class="tw"><table>
+<thead><tr><th>Model</th><th>What it bets on</th><th>Advantages</th><th>Risks</th></tr></thead>
+<tbody>
+<tr><td>Tiered subscription</td><td>Usage will not differ much between users, or can be held in check by quotas</td><td>Predictable bills, simple to sell, low psychological burden for users</td><td>“Unlimited” usage creates an open-ended cost liability; heavy users drag down overall margin<sup class="ref"><a href="#r1">[1]</a></sup></td></tr>
+<tr><td>Usage-based</td><td>Usage correlates with value, and users accept paying as they use</td><td>Revenue moves with cost, margin stays stable</td><td>Users worry the bill will run away; high barrier to entry early on</td></tr>
+<tr><td>Hybrid (subscription plus quota plus overage)</td><td>You want both predictability and protected margin</td><td>Covers both sides; enterprise customers usually find it easier to accept<sup class="ref"><a href="#r1">[1]</a></sup></td><td>Complex rules; quota and overage must be explained clearly</td></tr>
+<tr><td>Credits</td><td>Users are willing to prepay for predictability and flexibility</td><td>Good cash flow; easy to price features differently</td><td>The conversion between credits and real value must stay transparent, or trust suffers</td></tr>
+<tr><td>Outcome-based</td><td>Outcomes can be clearly measured and attributed</td><td>Directly tied to customer value</td><td>Defining outcomes and handling disputes is very costly; suits only well-bounded scenarios</td></tr>
+</tbody></table></div>
+<p class="tcap"><b>Table 2</b>Trade-offs of five pricing models, synthesized from articles by Stripe and Freemius, plus my own judgment.</p>
+</section>
+
+<section class="s" id="s5">
+<h2 class="sh"><i>05</i>How to choose: three questions</h2>
+<figure class="fg" id="fig4"><div class="figscroll"><svg viewBox="0 0 960 500" role="img" aria-labelledby="p4t p4d" class="svgfig"><title id="p4t">How to choose a pricing model</title><desc id="p4d">First ask whether cost varies with usage, then whether users need a predictable bill, and finally whether value can be measured.</desc><defs><marker id="p4-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><rect x="310.0" y="22.0" width="340" height="60" rx="14" class="bx hot"/><text x="480" y="58" class="t16 bold mid">Does cost vary a lot with usage?</text><rect x="50.0" y="155.0" width="280" height="70" rx="14" class="bx"/><text x="190" y="186" class="t16 bold mid">Subscription / tiered plans</text><text x="190" y="210" class="t14 tm mid">Cost mostly fixed: keep it simple</text><rect x="550.0" y="160.0" width="340" height="60" rx="14" class="bx"/><text x="720" y="196" class="t16 bold mid">Do users need a predictable bill?</text><rect x="410.0" y="291.0" width="300" height="78" rx="14" class="bx"/><text x="560" y="326" class="t16 bold mid">Hybrid: base plan + quota</text><text x="560" y="350" class="t14 tm mid">Usage beyond it billed by use</text><rect x="765.0" y="291.0" width="190" height="78" rx="14" class="bx"/><text x="860" y="326" class="t16 bold mid">Usage / credits</text><text x="860" y="350" class="t14 tm mid">Prepay = predictable</text><rect x="200.0" y="416.0" width="560" height="64" rx="14" class="bx"/><text x="480" y="454" class="t16 bold mid">Outcome-based pricing only if value is measurable</text><path d="M420,82 Q190,82 190,155" class="flow" marker-end="url(#p4-a)"/><text x="170" y="118" class="t15 ta bold mid">No</text><path d="M540,82 Q720,82 720,160" class="flow" marker-end="url(#p4-a)"/><text x="750" y="118" class="t15 ta bold mid">Yes</text><path d="M660,220 Q560,220 560,290" class="flow" marker-end="url(#p4-a)"/><text x="536" y="256" class="t15 ta bold mid">Yes</text><path d="M780,220 Q860,220 860,290" class="flow" marker-end="url(#p4-a)"/><text x="890" y="256" class="t15 ta bold mid">No</text><path d="M560,370 Q560,448 520,448" class="lnd"/><path d="M860,370 Q860,448 760,448" class="lnd"/></svg></div><figcaption><b>Fig. 4</b>How to choose a pricing model. Three questions in order: does cost vary with usage, does the bill need to be predictable, and can value be measured.</figcaption></figure>
+<ol>
+<li><strong>Does cost vary a lot with usage?</strong> If not, use the simplest tiered subscription; the strength of subscription is that users understand it, so do not complicate it just to be “more scientific.”</li>
+<li><strong>Do users need a predictable bill?</strong> For enterprises or customers with budget approval processes, they usually do. A hybrid model often fits better here: the base subscription gives predictability, while quota and overage protect margin.</li>
+<li><strong>Can the value be measured, and is attribution clear?</strong> Only when you are confident on this point is outcome-based pricing worth considering; otherwise it makes disputes part of the product.</li>
+</ol>
+<p>After choosing a model, I have two more bottom lines of my own. First, <strong>let users see their usage before they spend</strong>; a usage panel is not a nice extra but part of trust design. Second, <strong>always keep an exit that lets you change the price</strong>, because models and costs change faster than contracts.</p>
+</section>
+
+<section class="s" id="s6">
+<h2 class="sh"><i>06</i>Costs are falling; prices should not fall with them</h2>
+<p>One compiled industry statistics page notes that the cost of inference at GPT-3.5 level fell roughly 280-fold between November 2022 and October 2024.<sup class="ref"><a href="#r5">[5]</a></sup> A compilation page like this is second-hand, and the basis of its numbers needs checking yourself, but the direction is hardly disputed: the unit cost of inference keeps falling.</p>
+<p>This sets a trap for “cost-plus” pricing. If your price is anchored to cost, then when cost falls, revenue falls passively with it; and once a competitor cuts prices, it is hard to explain why you do not. A steadier way of thinking:</p>
+<ul>
+<li><strong>Use cost for the floor, value for the price.</strong> Cost tells you how low you cannot go; why users are willing to pay is set by value;</li>
+<li><strong>Spend the dividend of falling costs on better experience, not only on lower prices.</strong> For example a higher pass rate, faster responses, more features;</li>
+<li><strong>Recompute the cost ledger regularly.</strong> After each model swap, prompt change or caching-strategy adjustment, update the effective unit cost.</li>
+</ul>
+</section>
+
+<section class="s" id="s7">
+<h2 class="sh"><i>07</i>The ledger in two real projects</h2>
+<h3>The bid workbench: making cost a visible feature</h3>
+<p>The power-industry bid workbench I built lists “task records and records of model-call usage and cost” in its README as part of its delivery and tracking capabilities.<sup class="ref"><a href="#r7">[7]</a></sup> For a product that generates lots of long text per project, this is necessary: without usage records you cannot know the real cost of one bid document, and so cannot price it. The details of this project are in the other article, “Putting an LLM into Bidding.”</p>
+<h3>Keysuit: a completely different cost structure</h3>
+<p>Keysuit is a macOS app that runs in a sandbox and does not use the network; the project rules explicitly require that it not use the network.<sup class="ref"><a href="#r6">[6]</a></sup> That means it has no pay-per-call model inference cost, and its marginal cost structure differs from everything discussed above; its pricing should revolve around value and distribution cost, not an inference bill. It is currently in a free public beta, and the price of the stable version is not yet set, a typical “validate value first, set price later” stage.</p>
+</section>
+
+<section class="s" id="s8">
+<h2 class="sh"><i>08</i>Limitations</h2>
+<ul>
+<li><strong>Illustrative numbers are not benchmarks.</strong> The relative values in Figure 1 and the cost-floor worked example only show structure; please replace them with your own data.</li>
+<li><strong>Prices and discounts change.</strong> The caching multiplier, the batch discount and each model’s price should be taken from the official pricing page on the day; I cite the values I could verify at the time of writing.</li>
+<li><strong>Some sources are second-hand.</strong> The cases and statistics in industry articles may not share a basis or sample; they are only suitable for understanding direction, not as direct evidence.</li>
+<li><strong>Pricing is more than a cost question.</strong> Brand, competition and customers’ payment habits all change the final decision; this article covers only the part most related to cost.</li>
+</ul>
+</section>
+
+<section class="s" id="s9">
+<h2 class="sh"><i>09</i>Ten self-checks before pricing</h2>
+<ul class="chk">
+<li>You know the effective unit cost of one acceptable result, not only the price of a single call.</li>
+<li>You have real data on first-pass rate, number of retries and human review time.</li>
+<li>You have tried caching, batching, model tiering and context trimming, and confirmed with the eval set that quality did not drop.</li>
+<li>You have drawn the “subscription vs. usage” crossing point: you know which tier of users starts losing you money.</li>
+<li>There are clear quotas or rate limits; you have not promised “unlimited usage.”</li>
+<li>Users can see their own usage before they spend.</li>
+<li>You have worked back from the target gross margin to a minimum price.</li>
+<li>The price is anchored to value; cost is only the floor.</li>
+<li>You recompute the cost ledger after every model swap or prompt change.</li>
+<li>Price and quota rules can be adjusted without overturning contracts.</li>
+</ul>
+</section>
+
+<section class="s" id="refs">
+<h2 class="sh"><i>REF</i>References</h2>
+<ol class="refs">
+<li id="r1">Stripe. <em>AI pricing models: How the main structures work and when to use them</em>. <a href="https://stripe.com/resources/more/ai-pricing-models" target="_blank" rel="noopener">stripe.com/resources/more/ai-pricing-models</a></li>
+<li id="r2">Anthropic. <em>Pricing</em> (batch discount and prompt-caching notes). <a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">platform.claude.com/docs/en/about-claude/pricing</a></li>
+<li id="r3">Anthropic. <em>Prompt caching</em> (cache reads priced at 0.1 times the base input price, among other notes). <a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" rel="noopener">platform.claude.com/docs/en/build-with-claude/prompt-caching</a></li>
+<li id="r4">Freemius. <em>AI app pricing models: How to choose the right one without getting destroyed by inference costs</em>. <a href="https://freemius.com/blog/ai-app-pricing-model/" target="_blank" rel="noopener">freemius.com/blog/ai-app-pricing-model/</a></li>
+<li id="r5">Orb. <em>AI pricing statistics</em> (second-hand compilation). <a href="https://www.withorb.com/blog/ai-pricing-statistics" target="_blank" rel="noopener">withorb.com/blog/ai-pricing-statistics</a></li>
+<li id="r6">Keysuit project internal documents (AGENTS.md, README).</li>
+<li id="r7">sunShineLoveMe/ai_bidding_power_grid, README. <a href="https://github.com/sunShineLoveMe/ai_bidding_power_grid" target="_blank" rel="noopener">github.com/sunShineLoveMe/ai_bidding_power_grid</a></li>
+</ol>
+<p class="note">Note: All figures are drawn by me; values are illustrative. Where sources are cited I only paraphrase their views and do not quote the originals at length. This is a translation of the Chinese original, first edition; corrections are welcome.</p>
+</section>
+
+</main>
+</div>
+<footer class="ft">
+  <nav><a href="../index.html?lang=en">Home</a><a href="https://github.com/sunShineLoveMe" target="_blank" rel="noopener">GitHub</a><a href="https://x.com/chirs_pro" target="_blank" rel="noopener">X</a><a href="mailto:chris@zhiyunllm.com">chris@zhiyunllm.com</a></nav>
+  <span>© Chris</span>
+</footer>
+<script>
+(function () {
+  var figs = document.querySelectorAll('figure.fg');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('vis'); io.unobserve(e.target); } }); }, { threshold: .25 });
+    figs.forEach(function (f) { io.observe(f); });
+  } else { figs.forEach(function (f) { f.classList.add('vis'); }); }
+  var links = [].slice.call(document.querySelectorAll('.toc a'));
+  var map = {}; links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var io2 = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { links.forEach(function (a) { a.classList.remove('on'); }); var a = map[e.target.id]; if (a) a.classList.add('on'); } }); }, { rootMargin: '-20% 0px -70% 0px' });
+    Object.keys(map).forEach(function (id) { var el = document.getElementById(id); if (el) io2.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>

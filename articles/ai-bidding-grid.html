@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>让大模型参与招投标：一个电力行业标书工作台的产品拆解 · Chris</title>
+<meta name="description" content="拆解一个电力行业 AI 标书工作台：为什么停在“起草加人审”、如何解读招标文件、三层检索、两层合规复核，以及它还缺少什么评测。">
+<meta property="og:title" content="让大模型参与招投标：一个电力行业标书工作台的产品拆解">
+<meta property="og:description" content="拆解一个电力行业 AI 标书工作台：为什么停在“起草加人审”、如何解读招标文件、三层检索、两层合规复核，以及它还缺少什么评测。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2026%2026%27%3E%3Crect%20width%3D%2726%27%20height%3D%2726%27%20rx%3D%276%27%20fill%3D%27%230A0B0F%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%279%27%20fill%3D%27none%27%20stroke%3D%27%23F2F0EA%27%20stroke-opacity%3D%27.7%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%273%27%20fill%3D%27%23FF6A2B%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="alternate" hreflang="en" href="ai-bidding-grid.en.html">
+<link rel="stylesheet" href="../css/article.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+<div class="prog" aria-hidden="true"></div>
+<div class="top"><a class="back" href="../index.html#articles">← 返回首页</a><span class="rt"><a class="alt" href="ai-bidding-grid.en.html" hreflang="en">EN</a><span class="name">Chris</span></span></div>
+<div class="wrap">
+<aside class="toc" aria-label="目录"><b>CONTENTS</b><a href="#s1">01 标书不是写作比赛</a><a href="#s2">02 先划边界</a><a href="#s3">03 总流程</a><a href="#s4">04 解读</a><a href="#s5">05 检索</a><a href="#s6">06 写作</a><a href="#s7">07 合规复核</a><a href="#s8">08 成本与追踪</a><a href="#s9">09 还缺什么</a><a href="#s10">10 局限与风险</a><a href="#s11">11 如果重做</a><a href="#refs">参考资料</a></aside>
+<main>
+<header class="hd">
+  <div class="kick"><span>PROJECT TEARDOWN</span><span>v1 · 第一版</span></div>
+  <h1>让大模型参与招投标：<br>一个电力行业<em>标书工作台</em>的产品拆解</h1>
+  <p class="sub">标书不是写作比赛。真正的设计重心是解读、检索、约束和核对，并让人始终在回路里。</p>
+  <div class="meta"><span>作者：Chris</span><span>约 18 分钟阅读</span><span>4 张图 · 1 张表</span></div>
+  <div class="abs"><h2>ABSTRACT</h2><p>本文拆解一个面向电力行业的 AI 标书工作台（开源仓库 ai_bidding_power_grid），讨论：</p><ol><li>为什么它停在“起草，由人审阅”，而不是全自动；</li><li>解读、检索、写作、合规复核四个环节各自的设计取舍；</li><li>用方法论一文的框架审视它：目前缺少什么评测，下一步该补什么。</li></ol><p>文中的事实来自该仓库的 README 与评估报告，产品分析为作者判断。</p></div>
+</header>
+
+<section class="s" id="s1">
+<h2 class="sh"><i>01</i>标书不是写作比赛</h2>
+<p class="lead">让大模型写一份标书，第一反应是“文笔够不够好”。做过投标的人都知道，这不是难点。</p>
+<p>标书的难，在于它同时要满足三件事：<strong>响应招标要求</strong>，不能漏项，实质性条款不满足通常会直接导致投标被否决；<strong>对照评分办法得分</strong>，每个评分项都要有对应的内容与证据；<strong>内容必须真实</strong>，资质、业绩、参数不能编。三件事里没有一件是“写得漂亮”能解决的。</p>
+<p>这决定了这类产品的设计重心：不是把生成文字这一步做得多强，而是把<strong>解读、检索、约束、核对</strong>这几件事串成一条可检查的流水线，并让人始终待在回路里。下面拆解的，是我做的电力行业 AI 标书工作台。它面向电力工程、设备供货和运维服务企业，把招标文件、企业知识库和标书编写放在同一个工具里。<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<div class="call"><b class="t">本文的边界</b><p>仓库的 README 明确声明：AI 输出需结合原始招标文件和企业材料复核，合规检查只用于辅助编制，不保证中标，也不替代投标人的最终审核。<sup class="ref"><a href="#r1">[1]</a></sup> 下面所有设计，都建立在这个前提上。</p></div>
+</section>
+
+<section class="s" id="s2">
+<h2 class="sh"><i>02</i>先划边界：它做什么，不做什么</h2>
+<p>在方法论文章里我讲过，AI 产品要先决定自主权档位。这个工具的选择很清楚：停在<strong>“起草，由人审阅”</strong>这一档，而不是“全自动出标书”。原因有三条，都来自业务本身：</p>
+<ul>
+<li><strong>出错代价高，而且不易被察觉。</strong>漏掉一条实质性要求，不会在生成当时报错，却可能在评标时让整份投标失去资格。这正是方法论里“代价高、难发现”的象限，只适合做草稿加确认。</li>
+<li><strong>责任不能转移。</strong>投标人对标书内容负责，工具给出的是编制辅助，最终的签章和审核必须是人。</li>
+<li><strong>材料有边界。</strong>README 建议先导入脱敏的资信或产品材料，实际业务中应使用有权处理的企业资料。<sup class="ref"><a href="#r1">[1]</a></sup></li>
+</ul>
+<p>因此，这个产品的价值不是“替你投标”，而是<strong>把一份几十页的招标文件，变成一张可核对的清单，再把写作和检查的体力活压缩下来</strong>。</p>
+</section>
+
+<section class="s" id="s3">
+<h2 class="sh"><i>03</i>总流程：六个环节，四个人工检查点</h2>
+<figure class="fg" id="fig1"><div class="figscroll"><svg viewBox="0 0 960 440" role="img" aria-labelledby="b1t b1d" class="svgfig"><title id="b1t">标书工作台的流程与人的检查点</title><desc id="b1d">六个环节依次推进：解读、检索、规划大纲、生成章节、合规复核、导出；其中解读、大纲、正文、覆盖检查处有人工检查点；企业知识库与用量记录贯穿全程。</desc><defs><marker id="b1-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><rect x="196" y="40" width="422" height="36" rx="18" class="chip"/><text x="407.0" y="63" class="t14 mid">企业知识库（pgvector）：为检索与写作提供依据</text><g class="rise" style="--i:0"><rect x="50" y="110" width="130" height="104" rx="14" class="bx"/><rect x="50" y="110" width="130" height="4" rx="2" fill="rgb(125,184,255)"/><text x="64" y="142" class="t14 mono" fill="rgb(125,184,255)">1</text><text x="64" y="168" class="t15 bold">解读招标文件</text><text x="64" y="192" class="t14 tm">结构化清单</text></g><line x1="182" y1="162" x2="192" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:1"><rect x="196" y="110" width="130" height="104" rx="14" class="bx"/><rect x="196" y="110" width="130" height="4" rx="2" fill="rgb(151,168,213)"/><text x="210" y="142" class="t14 mono" fill="rgb(151,168,213)">2</text><text x="210" y="168" class="t15 bold">检索企业资料</text><text x="210" y="192" class="t14 tm">资信 · 产品</text></g><line x1="328" y1="162" x2="338" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:2"><rect x="342" y="110" width="130" height="104" rx="14" class="bx"/><rect x="342" y="110" width="130" height="4" rx="2" fill="rgb(177,153,170)"/><text x="356" y="142" class="t14 mono" fill="rgb(177,153,170)">3</text><text x="356" y="168" class="t15 bold">规划分册大纲</text><text x="356" y="192" class="t14 tm">分册规划</text></g><line x1="474" y1="162" x2="484" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:3"><rect x="488" y="110" width="130" height="104" rx="14" class="bx"/><rect x="488" y="110" width="130" height="4" rx="2" fill="rgb(203,137,128)"/><text x="502" y="142" class="t14 mono" fill="rgb(203,137,128)">4</text><text x="502" y="168" class="t15 bold">生成章节</text><text x="502" y="192" class="t14 tm">流式写作</text></g><line x1="620" y1="162" x2="630" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:4"><rect x="634" y="110" width="130" height="104" rx="14" class="bx"/><rect x="634" y="110" width="130" height="4" rx="2" fill="rgb(229,122,85)"/><text x="648" y="142" class="t14 mono" fill="rgb(229,122,85)">5</text><text x="648" y="168" class="t15 bold">合规复核</text><text x="648" y="192" class="t14 tm">规则 + 语义</text></g><line x1="766" y1="162" x2="776" y2="162" class="ln" marker-end="url(#b1-a)"/><g class="rise" style="--i:5"><rect x="780" y="110" width="130" height="104" rx="14" class="bx"/><rect x="780" y="110" width="130" height="4" rx="2" fill="rgb(255,106,43)"/><text x="794" y="142" class="t14 mono" fill="rgb(255,106,43)">6</text><text x="794" y="168" class="t15 bold">导出 DOCX</text><text x="794" y="192" class="t14 tm">可编辑 Word</text></g><line x1="115.0" y1="214" x2="115.0" y2="246" class="lnd"/><rect x="51.0" y="246" width="128" height="34" rx="17" class="gate"/><text x="115.0" y="268" class="t14 mid">核对解析结果</text><line x1="407.0" y1="214" x2="407.0" y2="246" class="lnd"/><rect x="343.0" y="246" width="128" height="34" rx="17" class="gate"/><text x="407.0" y="268" class="t14 mid">调整大纲</text><line x1="553.0" y1="214" x2="553.0" y2="246" class="lnd"/><rect x="489.0" y="246" width="128" height="34" rx="17" class="gate"/><text x="553.0" y="268" class="t14 mid">编辑修改正文</text><line x1="699.0" y1="214" x2="699.0" y2="246" class="lnd"/><rect x="635.0" y="246" width="128" height="34" rx="17" class="gate"/><text x="699.0" y="268" class="t14 mid">确认覆盖与补强</text><text x="50" y="324" class="t14 ta">人的检查点</text><rect x="50" y="340" width="860" height="44" rx="12" class="bx"/><text x="480" y="368" class="t14 mid">任务记录 · 模型调用用量与成本记录：贯穿全程，每一步都可追溯</text></svg></div><figcaption><b>图 1</b>标书工作台的流程与人的检查点　六个环节依次推进，检查点放在上一环节的输出被“信以为真”之前；知识库与用量记录贯穿全程。</figcaption></figure>
+<p>README 推荐的首次体验路径，本身就是一条带检查点的流水线：先在系统设置里填写企业画像并导入脱敏材料；上传招标文件，检查解析出的要求、评分项与风险；生成分册大纲，选择章节生成正文并在编辑器里修改；最后查看响应覆盖和 AI 用量记录，再导出 DOCX。<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<p>注意检查点的位置：它们都放在<strong>上一个环节的输出被下一个环节“信以为真”之前</strong>。解读如果错了，后面的大纲、正文、合规检查会一路错下去，所以第一个检查点最贵、也最值得投入。</p>
+</section>
+
+<section class="s" id="s4">
+<h2 class="sh"><i>04</i>解读：把长文件变成结构化清单</h2>
+<p>解读环节的产出是后面所有环节的“真相来源”。按仓库里一份评估报告的描述，系统会从招标文件中抽取六类信息：项目概况、资格要求、商务要求、技术要求、评分项和风险项；遇到扫描件、图片和复杂表格，则可借助 MinerU 做 OCR。<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<p>从产品角度看，这一步有两个设计要点：</p>
+<ul>
+<li><strong>结构化，而不是摘要。</strong>摘要读起来舒服，却没法被逐项核对；“要求、评分项、风险项”这样的清单，才能在后面作为合规检查的对照基准。</li>
+<li><strong>让人能快速纠错。</strong>解析结果要以易于核对的形式呈现，并允许修改。扫描件识别需要额外配置 MinerU，这是一个现实的依赖，也是一个需要在文档里讲清楚的限制。<sup class="ref"><a href="#r1">[1]</a></sup></li>
+</ul>
+</section>
+
+<section class="s" id="s5">
+<h2 class="sh"><i>05</i>检索：企业资料不是“搜到”就行</h2>
+<p>标书里最不能出错的，是企业自己的事实：资质、业绩、产品参数、型号。这些内容应当来自知识库，而不是模型的“记忆”。README 里的知识库检索，使用向量召回、Rerank 和关键词兜底三层。<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<figure class="fg" id="fig2"><div class="figscroll"><svg viewBox="0 0 960 420" role="img" aria-labelledby="b2t b2d" class="svgfig"><title id="b2t">企业知识库的三层检索</title><desc id="b2d">漏斗：先把章节意图变成请求，再向量召回、Rerank 重排，最后用关键词兜底找回专有名词，带来源的结果进入写作提示。</desc><g class="rise" style="--i:0"><rect x="50.0" y="40" width="860" height="60" rx="12" fill="#7DB8FF" fill-opacity=".16" stroke="#7DB8FF" stroke-opacity=".8"/><text x="480" y="66" class="t16 bold mid">招标要求 / 章节意图</text><text x="480" y="88" class="t14 tm mid">先把要写的内容变成检索请求</text></g><g class="rise" style="--i:1"><rect x="120.0" y="116" width="720" height="60" rx="12" fill="#9EC9FF" fill-opacity=".16" stroke="#9EC9FF" stroke-opacity=".8"/><text x="480" y="142" class="t16 bold mid">向量召回</text><text x="480" y="164" class="t14 tm mid">找语义上相近的资料，覆盖面广</text></g><g class="rise" style="--i:2"><rect x="190.0" y="192" width="580" height="60" rx="12" fill="#FFA070" fill-opacity=".16" stroke="#FFA070" stroke-opacity=".8"/><text x="480" y="218" class="t16 bold mid">Rerank 重排</text><text x="480" y="240" class="t14 tm mid">对候选再排一次，更贴近当前章节</text></g><g class="rise" style="--i:3"><rect x="260.0" y="268" width="440" height="60" rx="12" fill="#FF6A2B" fill-opacity=".16" stroke="#FF6A2B" stroke-opacity=".8"/><text x="480" y="294" class="t16 bold mid">关键词兜底</text><text x="480" y="316" class="t14 tm mid">型号、编号、专有名词，向量容易漏</text></g><line x1="480" y1="344" x2="480" y2="364" class="ln"/><rect x="300" y="364" width="360" height="40" rx="20" class="gate"/><text x="480" y="390" class="t15 mid">带来源的资料 → 写作提示</text></svg></div><figcaption><b>图 2</b>企业知识库的三层检索　向量负责语义，Rerank 负责排序，关键词兜底负责“必须一字不差”的专有名词。</figcaption></figure>
+<p>为什么需要第三层？仓库里的评估报告在评审一个早期版本时指出，只用向量检索会丢失领域术语和型号，并建议加入关键词检索与重排。<sup class="ref"><a href="#r2">[2]</a></sup> 这个判断很符合直觉：向量擅长“意思相近”，却不擅长“必须一字不差”。设备型号、条款编号、证书号恰恰是后者。目前 README 列出的能力已经包含重排与关键词兜底，方向与那份评审的建议一致。</p>
+<div class="call"><b class="t">产品判断</b><p>检索的目标不是“找到相关内容”，而是“找到<strong>可以被引用的事实</strong>”。所以进入写作提示的资料应当带来源，让人在审阅时能回到原文核对。</p></div>
+</section>
+
+<section class="s" id="s6">
+<h2 class="sh"><i>06</i>写作：用规则约束模型</h2>
+<p>评估报告把“规则化的写作计划”列为这个系统的亮点之一：系统会为每个章节计算目标字数和建议页数，并决定是否需要插入表格、图片、资质或案例，用规则去约束模型的输出，而不是完全交给模型自由发挥。<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<p>这背后是一条通用的方法：<strong>能写成规则的约束，就别指望模型自觉遵守</strong>。篇幅、结构、必须出现的元素，这些是确定性的要求，用代码规划；模型只负责在这个框架里把内容写得通顺、贴合资料。</p>
+<h3>长章节怎么写</h3>
+<p>报告提到，对超过 3,500 字的核心章节，系统采用多轮生成，以避免输出被长度上限截断；正文通过流式方式返回，用户不必等到整章生成完才能看到内容。<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<h3>一个已知的风险：上下文污染</h3>
+<p>评估报告同时指出，早期版本会把前面章节的内容不加裁剪地喂给模型，长篇生成时可能出现上下文污染、token 浪费和注意力被稀释的问题，并建议用摘要或记忆机制压缩前文。<sup class="ref"><a href="#r2">[2]</a></sup> 这个风险在长文本产品里很典型：文档越长，越需要主动管理“模型此刻该看到什么”。</p>
+</section>
+
+<section class="s" id="s7">
+<h2 class="sh"><i>07</i>合规复核：从“找得到”到“对不对”</h2>
+<p>合规复核是这个产品最贴近风险的一环。评估报告对早期版本的评价是：合规检查主要靠文本匹配，只能做粗粒度比对，难以判断语义上是否真正响应；建议升级为用 LLM 做语义交叉核对。<sup class="ref"><a href="#r2">[2]</a></sup> README 现在的描述是“规则检查加 LLM 语义复核，定位响应缺失并给出补强建议”。<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<figure class="fg" id="fig3"><div class="figscroll"><svg viewBox="0 0 960 400" role="img" aria-labelledby="b3t b3d" class="svgfig"><title id="b3t">两层合规复核</title><desc id="b3d">招标要求、评分项与风险进入两层复核：规则检查负责确定性核对，语义复核负责判断是否真正响应；输出响应缺失清单与补强建议，由人定稿。</desc><defs><marker id="b3-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#FF6A2B"/></marker></defs><rect x="40" y="140" width="200" height="120" rx="14" class="bx"/><text x="140.0" y="196.0" class="t16 bold mid">招标要求</text><text x="140.0" y="220.0" class="t14 tm mid">评分项 · 风险项</text><rect x="330" y="70" width="280" height="100" rx="14" class="bx"/><text x="470.0" y="116.0" class="t16 bold mid">规则检查</text><text x="470.0" y="140.0" class="t14 tm mid">确定性：找得到 / 找不到</text><rect x="330" y="230" width="280" height="100" rx="14" class="bx"/><text x="470.0" y="276.0" class="t16 bold mid">LLM 语义复核</text><text x="470.0" y="300.0" class="t14 tm mid">判断：是否真的响应了</text><rect x="700" y="140" width="220" height="120" rx="14" class="bx hot"/><text x="810.0" y="196.0" class="t16 bold mid">响应缺失清单</text><text x="810.0" y="220.0" class="t14 tm mid">加补强建议</text><path d="M240,180 Q285,120 330,120" class="flow" marker-end="url(#b3-a)"/><path d="M240,220 Q285,280 330,280" class="flow" marker-end="url(#b3-a)"/><path d="M610,120 Q655,120 700,175" class="flow" marker-end="url(#b3-a)"/><path d="M610,280 Q655,280 700,225" class="flow" marker-end="url(#b3-a)"/><line x1="810" y1="260" x2="810" y2="298" class="lnd"/><rect x="710" y="298" width="200" height="38" rx="19" class="gate"/><text x="810" y="323" class="t15 mid">人审核并定稿</text><text x="40" y="372" class="t14 tm">规则擅长“有没有”，语义擅长“对不对”；两层合起来才接近真实的响应检查</text></svg></div><figcaption><b>图 3</b>两层合规复核　规则擅长“有没有”，语义复核擅长“对不对”；结果由人审核定稿。</figcaption></figure>
+<p>两层各有分工。规则检查是确定性的：要求里的某个关键项，在正文里出现了吗？语义复核则回答更难的问题：正文里提到了，是不是<strong>真的满足</strong>了要求？只有前一层，会把“提到了”误当成“响应了”；只有后一层，则会让结果难以复现。</p>
+<p>它的输出最好还原成业务人员熟悉的形式，也就是评分项与分册之间的覆盖矩阵：</p>
+<figure class="fg" id="fig4"><div class="figscroll"><svg viewBox="0 0 960 400" role="img" aria-labelledby="b4t b4d" class="svgfig"><title id="b4t">响应覆盖矩阵（示意）</title><desc id="b4d">行是评分项与风险项，列是各分册，圆点表示已响应、部分响应或缺失。数据为示意。</desc><text x="40" y="44" class="t16 tm">响应覆盖：谁没有被任何一册回答，一眼可见</text><text x="335.0" y="90" class="t16 bold mid">技术册</text><text x="485.0" y="90" class="t16 bold mid">商务册</text><text x="635.0" y="90" class="t16 bold mid">资格册</text><line x1="40" y1="114" x2="710" y2="114" class="ln faint"/><text x="40" y="140" class="t15">评分项 A</text><circle cx="335.0" cy="134" r="9" fill="#7DB8FF" class="pop" style="--i:0"/><circle cx="485.0" cy="134" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4" class="pop" style="--i:1"/><path d="M485.0,125 A9,9 0 0 1 485.0,143 Z" fill="#FF9A6B" class="pop" style="--i:1"/><circle cx="635.0" cy="134" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:2"/><line x1="40" y1="156" x2="710" y2="156" class="ln faint"/><text x="40" y="182" class="t15">评分项 B</text><circle cx="335.0" cy="176" r="9" fill="#7DB8FF" class="pop" style="--i:1"/><circle cx="485.0" cy="176" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:2"/><circle cx="635.0" cy="176" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:3"/><line x1="40" y1="198" x2="710" y2="198" class="ln faint"/><text x="40" y="224" class="t15">评分项 C</text><circle cx="335.0" cy="218" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4" class="pop" style="--i:2"/><path d="M335.0,209 A9,9 0 0 1 335.0,227 Z" fill="#FF9A6B" class="pop" style="--i:2"/><circle cx="485.0" cy="218" r="9" fill="#7DB8FF" class="pop" style="--i:3"/><circle cx="635.0" cy="218" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:4"/><line x1="40" y1="240" x2="710" y2="240" class="ln faint"/><text x="40" y="266" class="t15">评分项 D</text><circle cx="335.0" cy="260" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:3"/><circle cx="485.0" cy="260" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:4"/><circle cx="635.0" cy="260" r="9" fill="#7DB8FF" class="pop" style="--i:5"/><line x1="40" y1="282" x2="710" y2="282" class="ln faint"/><text x="40" y="308" class="t15">风险项 E</text><circle cx="335.0" cy="302" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4" class="pop" style="--i:4"/><path d="M335.0,293 A9,9 0 0 1 335.0,311 Z" fill="#FF9A6B" class="pop" style="--i:4"/><circle cx="485.0" cy="302" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3" class="pop" style="--i:5"/><circle cx="635.0" cy="302" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4" class="pop" style="--i:6"/><path d="M635.0,293 A9,9 0 0 1 635.0,311 Z" fill="#FF9A6B" class="pop" style="--i:6"/><rect x="60" y="334" width="840" height="1" fill="none"/><circle cx="49" cy="366" r="9" fill="#7DB8FF"/><text x="66" y="371" class="t14 tm">已响应</text><circle cx="161" cy="366" r="9" fill="none" stroke="#FF9A6B" stroke-width="2.4"/><path d="M161,357 A9,9 0 0 1 161,375 Z" fill="#FF9A6B"/><text x="178" y="371" class="t14 tm">部分响应</text><circle cx="287" cy="366" r="9" fill="none" stroke="#FF6A2B" stroke-width="2" stroke-dasharray="3 3"/><text x="304" y="371" class="t14 tm">缺失（需补强）</text><text x="920" y="366" class="t14 tm end">示意数据</text></svg></div><figcaption><b>图 4</b>响应覆盖矩阵（示意）　把“漏”变成可见：没有任何一册回答的评分项，是最先该补的。数据为示意。</figcaption></figure>
+<p>矩阵的价值在于<strong>把“漏”变成可见的</strong>：没有任何一册回答的评分项，是最先该补的。人在这个环节做的是判断，而不是逐字找茬。</p>
+</section>
+
+<section class="s" id="s8">
+<h2 class="sh"><i>08</i>成本与追踪：把账放进产品</h2>
+<p>标书是大批量长文本生成的典型场景：一份标书几十个章节，每个章节都可能多轮生成，还要检索和复核。README 把“任务记录、模型调用用量与成本记录”作为交付与追踪的一部分。<sup class="ref"><a href="#r1">[1]</a></sup></p>
+<p>这不是锦上添花。没有用量与成本记录，就无法回答“一份标书的真实成本是多少”，也就无法决定怎么定价、该不该换模型、缓存是否值得。这部分的分析，我放在了《AI 产品的定价与成本账》里。</p>
+</section>
+
+<section class="s" id="s9">
+<h2 class="sh"><i>09</i>用评测的眼光看：它还缺什么</h2>
+<p>这是我对这个项目最诚实的一节。README 没有给出量化的效果指标或基准结果；那份评估报告也只是基于代码走查的定性评价，同样没有基准和测试数据。<sup class="ref"><a href="#r1">[1]</a></sup><sup class="ref"><a href="#r2">[2]</a></sup> 换句话说：<strong>它有流程设计，但还没有一套能反复运行的评测集</strong>。按方法论一文的框架，下一步应该补的是下面这些检查项。</p>
+<div class="tw"><table>
+<thead><tr><th>检查项</th><th>类型</th><th>怎么判</th><th>为什么重要</th></tr></thead>
+<tbody>
+<tr><td>引用的资质、业绩、型号是否都存在于知识库</td><td>硬约束</td><td>代码比对</td><td>标书里不能编造事实</td></tr>
+<tr><td>解读是否覆盖了招标文件中的全部评分项</td><td>硬约束</td><td>人工标注清单 + 代码比对</td><td>解读是后续所有环节的基准</td></tr>
+<tr><td>实质性要求是否都得到响应</td><td>硬约束</td><td>语义复核 + 抽样人工</td><td>漏项可能导致被否决</td></tr>
+<tr><td>章节是否贴合评分办法的得分点</td><td>软质量</td><td>校准过的模型评审</td><td>决定“好不好”而不是“有没有”</td></tr>
+<tr><td>长章节在多轮生成后是否前后一致</td><td>软质量</td><td>抽样人工</td><td>对应上下文污染的风险</td></tr>
+<tr><td>按标书类型分组的通过率</td><td>回归</td><td>分组对比</td><td>避免总平均掩盖关键分组的下降</td></tr>
+</tbody></table></div>
+<p class="tcap"><b>表 1</b>建议补充的评测检查项。示意，具体项需要用真实脱敏招标文件标注后确定。</p>
+</section>
+
+<section class="s" id="s10">
+<h2 class="sh"><i>10</i>局限与风险</h2>
+<ul>
+<li><strong>没有量化指标。</strong>目前无法用数字说明它“好到什么程度”，这是上一节要补的。</li>
+<li><strong>保密与隐私。</strong>招标与企业资料往往涉及商业秘密。评估报告本身没有讨论安全、隐私与保密，这是一个明显的空白；README 提示使用脱敏材料、部署时替换示例密钥，只是起点。<sup class="ref"><a href="#r1">[1]</a></sup><sup class="ref"><a href="#r2">[2]</a></sup></li>
+<li><strong>依赖外部服务。</strong>默认使用 DeepSeek 做写作与解读，知识库依赖 DashScope 的 Embedding 与 Rerank，需要同时配置相应的密钥，服务的可用性和成本变化都会影响产品。<sup class="ref"><a href="#r1">[1]</a></sup></li>
+<li><strong>不是中标保证。</strong>投标的结果取决于许多工具之外的因素。这个产品能减少漏项和体力劳动，不能替代对项目本身的判断。</li>
+<li><strong>示意内容。</strong>图 4 的覆盖矩阵与表 1 的检查项是为了说明方法，不代表真实数据。</li>
+</ul>
+</section>
+
+<section class="s" id="s11">
+<h2 class="sh"><i>11</i>如果重新做一遍，我会先做什么</h2>
+<ol>
+<li>收集几十份脱敏的真实招标文件，人工标注评分项与实质性要求，作为第一版评测集。</li>
+<li>把“解读是否覆盖全部评分项”变成每次改动都要跑的回归检查。</li>
+<li>给知识库中的每条事实标注来源，并让写作提示强制引用来源。</li>
+<li>为合规复核设定“宁可多报，不可漏报”的阈值，并由业务方拍板。</li>
+<li>从第一天起记录每个环节的用量与成本，用它倒推定价。</li>
+</ol>
+</section>
+
+<section class="s" id="refs">
+<h2 class="sh"><i>REF</i>参考资料</h2>
+<ol class="refs">
+<li id="r1">sunShineLoveMe/ai_bidding_power_grid，README 与项目说明. <a href="https://github.com/sunShineLoveMe/ai_bidding_power_grid" target="_blank" rel="noopener">github.com/sunShineLoveMe/ai_bidding_power_grid</a></li>
+<li id="r2">同一仓库中的 <em>AI_Bidding_System_Evaluation_Report.md</em>（基于代码走查的定性评估，针对一个早期的湖北水利版本）. <a href="https://github.com/sunShineLoveMe/ai_bidding_power_grid/blob/main/AI_Bidding_System_Evaluation_Report.md" target="_blank" rel="noopener">查看原文</a></li>
+</ol>
+<p class="note">说明：本文只使用公开仓库中的内容，没有涉及任何真实招标项目或企业资料。仓库的 README 与评估报告我只转述了要点；文中的产品分析和“如果重做”部分是我的判断。图示均为自绘，示意数据不代表真实结果。这是第一版，欢迎指出错误。</p>
+</section>
+
+</main>
+</div>
+<footer class="ft">
+  <nav><a href="../index.html">首页</a><a href="https://github.com/sunShineLoveMe" target="_blank" rel="noopener">GitHub</a><a href="https://x.com/chirs_pro" target="_blank" rel="noopener">X</a><a href="mailto:chris@zhiyunllm.com">chris@zhiyunllm.com</a></nav>
+  <span>© Chris</span>
+</footer>
+<script>
+(function () {
+  var figs = document.querySelectorAll('figure.fg');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('vis'); io.unobserve(e.target); } }); }, { threshold: .25 });
+    figs.forEach(function (f) { io.observe(f); });
+  } else { figs.forEach(function (f) { f.classList.add('vis'); }); }
+  var links = [].slice.call(document.querySelectorAll('.toc a'));
+  var map = {}; links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var io2 = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { links.forEach(function (a) { a.classList.remove('on'); }); var a = map[e.target.id]; if (a) a.classList.add('on'); } }); }, { rootMargin: '-20% 0px -70% 0px' });
+    Object.keys(map).forEach(function (id) { var el = document.getElementById(id); if (el) io2.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>

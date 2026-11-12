@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 时代的产品方法论：设计一个会出错的产品，并验证它 · Chris</title>
+<meta name="description" content="AI 功能的输出是一条质量分布而非固定值。本文讲如何判断该不该用 AI、如何设计自主权与出错路径、如何用一级一级的原型和评测集来验证。">
+<meta property="og:title" content="AI 时代的产品方法论">
+<meta property="og:description" content="设计一个会出错的产品，并验证它。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2026%2026%27%3E%3Crect%20width%3D%2726%27%20height%3D%2726%27%20rx%3D%276%27%20fill%3D%27%230A0B0F%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%279%27%20fill%3D%27none%27%20stroke%3D%27%23F2F0EA%27%20stroke-opacity%3D%27.7%27/%3E%3Ccircle%20cx%3D%2713%27%20cy%3D%2713%27%20r%3D%273%27%20fill%3D%27%23FF6A2B%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="alternate" hreflang="en" href="ai-product-method.en.html">
+<link rel="stylesheet" href="../css/article.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+<div class="prog" aria-hidden="true"></div>
+<div class="top">
+  <a class="back" href="../index.html#articles">← 返回首页</a>
+  <span class="rt"><a class="alt" href="ai-product-method.en.html" hreflang="en">EN</a><span class="name">Chris</span></span>
+</div>
+<div class="wrap">
+<aside class="toc" aria-label="目录">
+  <b>CONTENTS</b>
+  <a href="#s1">01 会出错的东西</a>
+  <a href="#s2">02 值不值得用 AI</a>
+  <a href="#s3">03 设计不确定性</a>
+  <a href="#s4">04 原型验证阶梯</a>
+  <a href="#s5">05 评测是新的 PRD</a>
+  <a href="#s6">06 成本与延迟</a>
+  <a href="#s7">07 工作流 vs 智能体</a>
+  <a href="#s8">08 实例：Keysuit</a>
+  <a href="#s9">09 局限</a>
+  <a href="#s10">10 检查清单</a>
+  <a href="#refs">参考资料</a>
+</aside>
+<main>
+<header class="hd">
+  <div class="kick"><span>PRODUCT METHOD</span><span>v1 · 第一版</span></div>
+  <h1>AI 时代的产品方法论：<br>设计一个<em>会出错</em>的产品，并验证它</h1>
+  <p class="sub">当输出是一条质量分布而不是一个固定值，需求、设计、原型和验收都要换一种做法。</p>
+  <div class="meta"><span>作者：Chris</span><span>约 20 分钟阅读</span><span>6 张图 · 1 张表 · 1 份清单</span></div>
+  <div class="abs">
+    <h2>ABSTRACT</h2>
+    <p>AI 功能与传统功能的根本差别，是它的输出不是一个点，而是一条质量分布。基于这一点，本文提出一套面向产品经理与开发者的工作框架，包含：</p>
+    <ol>
+      <li>立项前的三道判断题与“代价 × 可发现性”矩阵；</li>
+      <li>五档自主权刻度与“出错之后”的设计；</li>
+      <li>从故事板到小范围灰度的六级原型验证阶梯，每级只回答一个问题；</li>
+      <li>把评测集当作可执行的需求文档，以及成本、延迟的产品化表达。</li>
+    </ol>
+    <p>文末给出一个真实项目（Keysuit）里人与 AI 的分工，以及这套方法的局限。</p>
+  </div>
+</header>
+
+<section class="s" id="s1">
+<h2 class="sh"><i>01</i>先承认一件事：你在设计一个会出错的东西</h2>
+<p class="lead">传统软件的规格书写的是“输入 X，输出 Y”。点击“导出”，要么得到 PDF，要么得到一条错误信息，行为可以被穷举、被断言、被一次性验收。</p>
+<p>AI 功能不是这样。同一份输入，模型可能给出十种不同质量的输出：有的惊艳，有的平庸，偶尔有一次离谱。你交付的不是一个点，而是一条<strong>质量分布</strong>。产品的真实体验，由这条分布的形状决定，尤其是左边那条尾巴。</p>
+<figure class="fg" id="fig1"><div class="figscroll"><svg viewBox="0 0 960 380" role="img" aria-labelledby="f1t f1d" class="svgfig"><title id="f1t">图 1：确定性功能与 AI 功能的输出对比</title><desc id="f1d">左侧：传统功能一个输入只对应一个固定输出。右侧：AI 功能一个输入对应一条质量分布曲线，可接受线左侧的区域是失败，demo 展示的是曲线上最好的位置。</desc><defs><clipPath id="f1-bad"><rect x="520" y="60" width="180" height="240"/></clipPath><clipPath id="f1-ok"><rect x="700" y="60" width="240" height="240"/></clipPath><linearGradient id="f1-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DB8FF" stop-opacity=".5"/><stop offset="1" stop-color="#7DB8FF" stop-opacity=".04"/></linearGradient><marker id="f1-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><text x="40" y="46" class="t20 bold">传统功能</text><text x="40" y="72" class="t15 tm">一个输入，一个输出</text><rect x="40" y="130" width="150" height="56" rx="12" class="bx"/><text x="115" y="164" class="t16 mid">点击「导出」</text><line x1="194" y1="158" x2="282" y2="158" class="ln" marker-end="url(#f1-a)"/><rect x="290" y="130" width="150" height="56" rx="12" class="bx"/><text x="365" y="164" class="t16 mid">生成 PDF</text><line x1="40" y1="290" x2="440" y2="290" class="ln"/><circle cx="380" cy="290" r="9" class="dot-ok"/><text x="380" y="262" class="t14 tb mid">每次都在这里</text><text x="40" y="320" class="t14 tm">不可用</text><text x="440" y="320" class="t14 tm end">出色</text><text x="240" y="346" class="t14 tm mid">输出质量</text><line x1="480" y1="40" x2="480" y2="350" class="lnd"/><text x="520" y="46" class="t20 bold">AI 功能</text><text x="520" y="72" class="t15 tm">同一份标书，跑一百次</text><path d="M520,290 C560,288 600,280 640,262 C690,238 730,170 780,128 C800,112 822,110 842,128 C872,156 892,236 940,290 L940,290 L520,290 Z" fill="#FF6A2B" fill-opacity=".5" clip-path="url(#f1-bad)" class="fadein"/><path d="M520,290 C560,288 600,280 640,262 C690,238 730,170 780,128 C800,112 822,110 842,128 C872,156 892,236 940,290 L940,290 L520,290 Z" fill="url(#f1-g)" clip-path="url(#f1-ok)" class="fadein"/><path d="M520,290 C560,288 600,280 640,262 C690,238 730,170 780,128 C800,112 822,110 842,128 C872,156 892,236 940,290" class="draw curve" pathLength="1"/><line x1="700" y1="96" x2="700" y2="290" class="lnd acc"/><text x="700" y="88" class="t14 ta mid">可接受线</text><text x="536" y="214" class="t16 ta bold">失败尾部</text><text x="536" y="236" class="t14 tm">用户记住的是这里</text><text x="820" y="228" class="t15 tb mid">多数输出可接受</text><circle cx="812" cy="112" r="6" class="demo"/><text x="812" y="94" class="t14 mid">demo 展示的那一次</text><line x1="520" y1="290" x2="940" y2="290" class="ln"/><circle cx="548" cy="290" r="5.5" class="pop dot-bad" style="--i:0"/><circle cx="606" cy="290" r="5.5" class="pop dot-bad" style="--i:1"/><circle cx="660" cy="290" r="5.5" class="pop dot-bad" style="--i:2"/><circle cx="690" cy="290" r="5.5" class="pop dot-bad" style="--i:3"/><circle cx="722" cy="290" r="5.5" class="pop dot-ok" style="--i:4"/><circle cx="748" cy="290" r="5.5" class="pop dot-ok" style="--i:5"/><circle cx="772" cy="290" r="5.5" class="pop dot-ok" style="--i:6"/><circle cx="792" cy="290" r="5.5" class="pop dot-ok" style="--i:7"/><circle cx="810" cy="290" r="5.5" class="pop dot-ok" style="--i:8"/><circle cx="826" cy="290" r="5.5" class="pop dot-ok" style="--i:9"/><circle cx="846" cy="290" r="5.5" class="pop dot-ok" style="--i:10"/><circle cx="868" cy="290" r="5.5" class="pop dot-ok" style="--i:11"/><circle cx="902" cy="290" r="5.5" class="pop dot-ok" style="--i:12"/><text x="520" y="320" class="t14 tm">不可用</text><text x="940" y="320" class="t14 tm end">出色</text><text x="730" y="346" class="t14 tm mid">输出质量　·　每个点是一次真实使用</text></svg></div><figcaption><b>图 1</b>确定性功能与 AI 功能的输出对比　左：传统功能每次得到同一个结果。右：同一份输入跑多次，输出落在一条分布上；demo 展示的是曲线上最好的位置，用户记住的是失败尾部。</figcaption></figure>
+<p>这带来三个后果，也是本文后面所有方法的出发点：</p>
+<ul>
+<li><strong>Demo 会系统性地高估产品。</strong>演示时人们总会挑一个跑得最好的例子，这个例子落在曲线的右端。用户却会在真实使用里把整条曲线都抽一遍，然后记住最糟的那几次。</li>
+<li><strong>“做对了”必须被重新定义。</strong>需求文档里的“系统应当正确提取全部条款”不再是可验收的陈述，要换成“在这类样本上，有多大比例的输出达到可接受线”。</li>
+<li><strong>设计的对象多了一层：失败。</strong>要设计的不只是成功时的界面，还有出错时用户能不能发现、能不能纠正、代价有多大。</li>
+</ul>
+<div class="call"><b class="t">DEMO TRAP</b><p>如果一个想法只靠“我试了几次，效果很好”来立项，那么它只证明了曲线的右端存在，没有证明左端可以承受。</p></div>
+</section>
+
+<section class="s" id="s2">
+<h2 class="sh"><i>02</i>先问值不值得用 AI，再问怎么用</h2>
+<p>多数失败的 AI 产品，并不是模型不够强，而是一开始就选错了问题。我习惯在立项前先过三道题，任何一道答不上来，就先别动手。</p>
+<h3>第一题：不用 AI，最笨的办法能解决多少？</h3>
+<p>先写出一个规则、模板或检索的基线版本。它的价值有两个：一是当作对照，没有对照就不知道模型到底贡献了多少；二是很多时候基线已经够用，省下的是后续整套评测、成本和维护。Anthropic 在总结构建智能体的经验时给的第一条建议也是类似的思路：从最简单的方案开始，只有在效果确实不够时才增加复杂度。<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<h3>第二题：出错的代价有多大，错误容易被发现吗？</h3>
+<p>这是整篇文章里我最看重的一张图。AI 功能可以按“出错代价”和“错误被发现的难度”放进一个矩阵，位置决定了你能给它多大的自主权。</p>
+<figure class="fg" id="fig2"><div class="figscroll"><svg viewBox="0 0 960 510" role="img" aria-labelledby="f2t f2d" class="svgfig"><title id="f2t">图 2：错误代价与可发现性矩阵</title><desc id="f2d">横轴是出错的代价与不可逆程度，纵轴是错误被发现的难度。四个象限分别对应抽检加监控、先缩小范围、放手做、草稿加确认。</desc><defs><marker id="f2-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><rect x="110" y="40" width="400.0" height="200.0" fill="#FF6A2B" fill-opacity="0.1" class="qb"/><text x="132" y="74" class="t18 bold">抽检 + 监控</text><text x="132" y="98" class="t14 tm">线上抽样，漂移告警</text><rect x="510.0" y="40" width="400.0" height="200.0" fill="#FF6A2B" fill-opacity="0.22" class="qb"/><text x="532.0" y="74" class="t18 bold">先缩小范围</text><text x="532.0" y="98" class="t14 tm">强评测，或暂不做</text><rect x="110" y="240.0" width="400.0" height="200.0" fill="#7DB8FF" fill-opacity="0.07" class="qb"/><text x="132" y="274.0" class="t18 bold">放手做</text><text x="132" y="298.0" class="t14 tm">自动执行，看采纳率</text><rect x="510.0" y="240.0" width="400.0" height="200.0" fill="#FF6A2B" fill-opacity="0.08" class="qb"/><text x="532.0" y="274.0" class="t18 bold">草稿 + 确认</text><text x="532.0" y="298.0" class="t14 tm">人在回路，逐次可审</text><circle cx="170" cy="170" r="7" class="pop demo" style="--i:0"/><text x="186" y="175" class="t15 pop" style="--i:0">内容推荐排序</text><circle cx="330" cy="206" r="7" class="pop demo" style="--i:1"/><text x="346" y="211" class="t15 pop" style="--i:1">自动打标签</text><circle cx="640" cy="190" r="7" class="pop demo" style="--i:2"/><text x="656" y="195" class="t15 pop" style="--i:2">漏报型检查（如合规核对）</text><circle cx="790" cy="140" r="7" class="pop demo" style="--i:3"/><text x="806" y="145" class="t15 pop" style="--i:3">自动付款</text><circle cx="170" cy="350" r="7" class="pop demo" style="--i:4"/><text x="186" y="355" class="t15 pop" style="--i:4">标题与润色建议</text><circle cx="300" cy="400" r="7" class="pop demo" style="--i:5"/><text x="316" y="405" class="t15 pop" style="--i:5">搜索结果摘要</text><circle cx="600" cy="350" r="7" class="pop demo" style="--i:6"/><text x="616" y="355" class="t15 pop" style="--i:6">邮件代发</text><circle cx="700" cy="410" r="7" class="pop demo" style="--i:7"/><text x="716" y="415" class="t15 pop" style="--i:7">合同条款起草</text><line x1="84" y1="440" x2="84" y2="36" class="ln" marker-end="url(#f2-a)"/><text x="72" y="52" class="t14 tm end">难</text><text x="72" y="440" class="t14 tm end">易</text><text transform="translate(36,240.0) rotate(-90)" class="t15 tm mid">错误被发现的难度</text><line x1="110" y1="460" x2="914" y2="460" class="ln" marker-end="url(#f2-a)"/><text x="110" y="486" class="t14 tm">低</text><text x="910" y="486" class="t14 tm end">高</text><text x="510.0" y="486" class="t15 tm mid">出错的代价与不可逆程度</text></svg></div><figcaption><b>图 2</b>错误代价与可发现性矩阵　位置决定自主权。右上角是危险区：代价高且错误难以被发现。圆点位置为示意，需结合自己的场景判断。</figcaption></figure>
+<p>读这张图的关键是右上角：<strong>代价高，而且错误不容易被发现</strong>。比如合规核对漏报了一条风险，没有人会在当下察觉，事后却代价巨大。这类功能不应该被包装成“自动完成”，而应该缩小范围、配上强评测，或者暂时不做。反过来，左下角的润色和摘要，错了用户一眼就看得出来，放手让它做，再用采纳率说话即可。</p>
+<h3>第三题：我们有没有办法知道它变好了还是变差了？</h3>
+<p>如果没有一套能反复运行的评测，每次改提示词、换模型都是在蒙眼调参。第 5 节会专门讲这件事。这里先给出结论：<strong>评测方案写不出来的功能，大概率还没想清楚它要解决的是什么问题。</strong></p>
+</section>
+
+<section class="s" id="s3">
+<h2 class="sh"><i>03</i>设计：把不确定性当作设计材料</h2>
+<p>当输出不可预测时，界面和流程就成了产品质量的一部分。我把设计决策归成四类。</p>
+<h3>3.1 自主权是一个刻度，不是开关</h3>
+<p>“要不要自动执行”不应该是二选一。把它拆成五档，每升一档都要求更强的证据。</p>
+<figure class="fg" id="fig3"><div class="figscroll"><svg viewBox="0 0 960 390" role="img" aria-labelledby="f3t f3d" class="svgfig"><title id="f3t">图 3：自主权刻度</title><desc id="f3d">从建议、起草、确认后执行、执行后可撤销到全自动共五档，每一档对应人的角色、出错后果和进入条件。</desc><defs><linearGradient id="f3-g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7DB8FF"/><stop offset="1" stop-color="#FF6A2B"/></linearGradient><marker id="f3-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><text x="230" y="36" class="t14 tm">更稳 · 更慢 · 人工多</text><text x="870" y="36" class="t14 tm end">更快 · 更省人 · 错误直达用户</text><line x1="230" y1="84" x2="870" y2="84" stroke="url(#f3-g)" stroke-width="3" stroke-linecap="round"/><g class="pop" style="--i:0"><circle cx="230" cy="84" r="15" fill="#0A0B0F" stroke="rgb(125,184,255)" stroke-width="2.5"/><circle cx="230" cy="84" r="5.5" fill="rgb(125,184,255)"/></g><text x="230" y="56" class="t14 mono mid" fill="rgb(125,184,255)">L1</text><text x="230" y="134" class="t17 bold mid">建议</text><g class="pop" style="--i:1"><circle cx="390" cy="84" r="15" fill="#0A0B0F" stroke="rgb(158,164,202)" stroke-width="2.5"/><circle cx="390" cy="84" r="5.5" fill="rgb(158,164,202)"/></g><text x="390" y="56" class="t14 mono mid" fill="rgb(158,164,202)">L2</text><text x="390" y="134" class="t17 bold mid">起草</text><g class="pop" style="--i:2"><circle cx="550" cy="84" r="15" fill="#0A0B0F" stroke="rgb(190,145,149)" stroke-width="2.5"/><circle cx="550" cy="84" r="5.5" fill="rgb(190,145,149)"/></g><text x="550" y="56" class="t14 mono mid" fill="rgb(190,145,149)">L3</text><text x="550" y="134" class="t17 bold mid">确认后执行</text><g class="pop" style="--i:3"><circle cx="710" cy="84" r="15" fill="#0A0B0F" stroke="rgb(222,126,96)" stroke-width="2.5"/><circle cx="710" cy="84" r="5.5" fill="rgb(222,126,96)"/></g><text x="710" y="56" class="t14 mono mid" fill="rgb(222,126,96)">L4</text><text x="710" y="134" class="t17 bold mid">执行后可撤销</text><g class="pop" style="--i:4"><circle cx="870" cy="84" r="15" fill="#0A0B0F" stroke="rgb(255,106,43)" stroke-width="2.5"/><circle cx="870" cy="84" r="5.5" fill="rgb(255,106,43)"/></g><text x="870" y="56" class="t14 mono mid" fill="rgb(255,106,43)">L5</text><text x="870" y="134" class="t17 bold mid">全自动</text><line x1="20" y1="160" x2="940" y2="160" class="ln faint"/><text x="20" y="190" class="t14 tm">人的角色</text><text x="230" y="190" class="t14 mid">自己决定并动手</text><text x="390" y="190" class="t14 mid">审阅并修改</text><text x="550" y="190" class="t14 mid">逐次批准</text><text x="710" y="190" class="t14 mid">事后抽查</text><text x="870" y="190" class="t14 mid">只看监控</text><line x1="20" y1="214" x2="940" y2="214" class="ln faint"/><text x="20" y="244" class="t14 tm">出错后果</text><text x="230" y="244" class="t14 mid">几乎为零</text><text x="390" y="244" class="t14 mid">浪费一次审阅</text><text x="550" y="244" class="t14 mid">被批准的才生效</text><text x="710" y="244" class="t14 mid">可撤销，有窗口期</text><text x="870" y="244" class="t14 mid">错误直达用户</text><line x1="20" y1="268" x2="940" y2="268" class="ln faint"/><text x="20" y="298" class="t14 tm">进入条件</text><text x="230" y="298" class="t14 mid">基本可用</text><text x="390" y="298" class="t14 mid">采纳率可观</text><text x="550" y="298" class="t14 mid">硬约束全通过</text><text x="710" y="298" class="t14 mid">回归稳定 + 撤销链路</text><text x="870" y="298" class="t14 mid">长期线上数据 + 告警</text><line x1="20" y1="268" x2="940" y2="268" class="ln faint"/><line x1="20" y1="322" x2="940" y2="322" class="ln faint"/><line x1="230" y1="360" x2="880" y2="360" class="ln acc" marker-end="url(#f3-a)"/><text x="555" y="350" class="t15 ta mid">每向右一格，都需要一份新的评测证据</text></svg></div><figcaption><b>图 3</b>自主权刻度　五档之间不是越高越好，每升一档都需要新的评测证据，不同任务可以处在不同档位。</figcaption></figure>
+<p>常见的错误是直接从 L1 跳到 L5，因为演示效果好看。更稳妥的做法是让产品在低档位先上线，用真实采纳数据证明某类任务可以升档，再逐类放开。同一个产品里，不同任务可以处在不同档位。</p>
+<h3>3.2 把“出错之后”画进主流程</h3>
+<p>每个 AI 步骤都应该回答四个问题：用户怎么知道这里可能错了？怎么看到模型依据了什么？怎么一步纠正？纠正之后系统是否学到了？这四个问题对应的界面元素，包括来源引用、置信提示、一键撤销和纠正入口，常被当作“后期优化”，其实应该与主功能同时设计。</p>
+<p>微软研究院等团队整理的《人机交互指南》给出了 18 条经过验证的设计准则，按照交互的四个阶段组织：开始之前、交互过程中、出错时、长期使用。作者用 20 款产品和 49 位从业者对这些准则做了检验。<sup class="ref"><a href="#r3">[3]</a></sup> 值得借用的不是某一条具体条目，而是这个<strong>按时间轴检查</strong>的视角：初次使用时，用户对它能做什么有没有合理预期？出错时，有没有给出纠正路径？用得久了，它是否真的在适应用户？</p>
+<h3>3.3 设计“可校准的信任”</h3>
+<p>目标不是让用户信任 AI，而是让用户的信任<strong>与系统的真实可靠度相称</strong>。过度信任会让错误流出，信任不足会让功能被闲置。实践上有三种手段：</p>
+<ul>
+<li>在能被验证的地方提供验证入口，例如引用原文位置，点击即可核对；</li>
+<li>在不确定时明确表达不确定，宁可给出“需要人确认”的标记，也不要用流畅的语气掩盖；</li>
+<li>让系统能力的边界在界面上可见，比如明确写出“目前只处理这三类文档”。</li>
+</ul>
+<h3>3.4 摩擦是故意留下的</h3>
+<p>在高代价环节，一次确认并不是糟糕的体验，而是对风险的诚实回应。真正糟糕的是在低代价环节也要求确认，用户很快学会机械点击，确认就失去意义。摩擦要留在刚好需要它的地方。</p>
+</section>
+
+<section class="s" id="s4">
+<h2 class="sh"><i>04</i>原型验证：一级一级爬，每级只问一个问题</h2>
+<p>AI 产品最贵的错误，是花了两个月做出一个“能跑”的垂直切片，才发现用户根本不会这样用它。原型验证的原则是：<strong>把最便宜的假设放在最前面检验</strong>，不同假设用不同保真度的原型。</p>
+<figure class="fg" id="fig4"><div class="figscroll"><svg viewBox="0 0 960 520" role="img" aria-labelledby="f4t f4d" class="svgfig"><title id="f4t">图 4：原型验证阶梯</title><desc id="f4d">从故事板、假门、绿野仙踪、提示词原型、垂直切片到小范围灰度共六级，每一级只回答一个问题，成本和证据强度逐级上升。</desc><text x="24" y="36" class="t16 tm">每一级只回答一个问题　·　便宜的排前面　·　没通过就停在这一级</text><g class="rise" style="--i:0"><rect x="24" y="313" width="142" height="165" rx="12" fill="rgb(125,184,255)" fill-opacity=".13" stroke="rgb(125,184,255)" stroke-opacity=".75" stroke-width="1.3"/><rect x="24" y="313" width="142" height="4" rx="2" fill="rgb(125,184,255)"/><text x="40" y="343" class="t14 mono" fill="rgb(125,184,255)">L0</text><text x="40" y="371" class="t17 bold">故事板</text><text x="40" y="399" class="t14 tm">问题和价值</text><text x="40" y="419" class="t14 tm">成立吗？</text><text x="40" y="464" class="t14 mono" fill="rgb(125,184,255)">半天</text></g><g class="rise" style="--i:1"><rect x="180" y="275" width="142" height="203" rx="12" fill="rgb(151,168,213)" fill-opacity=".13" stroke="rgb(151,168,213)" stroke-opacity=".75" stroke-width="1.3"/><rect x="180" y="275" width="142" height="4" rx="2" fill="rgb(151,168,213)"/><text x="196" y="305" class="t14 mono" fill="rgb(151,168,213)">L1</text><text x="196" y="333" class="t17 bold">假门</text><text x="196" y="361" class="t14 tm">有人愿意</text><text x="196" y="381" class="t14 tm">为它行动吗？</text><text x="196" y="464" class="t14 mono" fill="rgb(151,168,213)">1 天</text></g><g class="rise" style="--i:2"><rect x="336" y="237" width="142" height="241" rx="12" fill="rgb(177,153,170)" fill-opacity=".13" stroke="rgb(177,153,170)" stroke-opacity=".75" stroke-width="1.3"/><rect x="336" y="237" width="142" height="4" rx="2" fill="rgb(177,153,170)"/><text x="352" y="267" class="t14 mono" fill="rgb(177,153,170)">L2</text><text x="352" y="295" class="t17 bold">绿野仙踪</text><text x="352" y="323" class="t14 tm">交互真的有用？</text><text x="352" y="343" class="t14 tm">真实输入长什么样？</text><text x="352" y="464" class="t14 mono" fill="rgb(177,153,170)">1–3 天</text></g><g class="rise" style="--i:3"><rect x="492" y="199" width="142" height="279" rx="12" fill="rgb(203,137,128)" fill-opacity=".13" stroke="rgb(203,137,128)" stroke-opacity=".75" stroke-width="1.3"/><rect x="492" y="199" width="142" height="4" rx="2" fill="rgb(203,137,128)"/><text x="508" y="229" class="t14 mono" fill="rgb(203,137,128)">L3</text><text x="508" y="257" class="t17 bold">提示词原型</text><text x="508" y="285" class="t14 tm">模型在真实样本上</text><text x="508" y="305" class="t14 tm">能做到多好？</text><text x="508" y="464" class="t14 mono" fill="rgb(203,137,128)">1–2 天</text></g><g class="rise" style="--i:4"><rect x="648" y="161" width="142" height="317" rx="12" fill="rgb(229,122,85)" fill-opacity=".13" stroke="rgb(229,122,85)" stroke-opacity=".75" stroke-width="1.3"/><rect x="648" y="161" width="142" height="4" rx="2" fill="rgb(229,122,85)"/><text x="664" y="191" class="t14 mono" fill="rgb(229,122,85)">L4</text><text x="664" y="219" class="t17 bold">垂直切片</text><text x="664" y="247" class="t14 tm">端到端稳定吗？</text><text x="664" y="267" class="t14 tm">成本延迟能接受？</text><text x="664" y="464" class="t14 mono" fill="rgb(229,122,85)">1–2 周</text></g><g class="rise" style="--i:5"><rect x="804" y="123" width="142" height="355" rx="12" fill="rgb(255,106,43)" fill-opacity=".13" stroke="rgb(255,106,43)" stroke-opacity=".75" stroke-width="1.3"/><rect x="804" y="123" width="142" height="4" rx="2" fill="rgb(255,106,43)"/><text x="820" y="153" class="t14 mono" fill="rgb(255,106,43)">L5</text><text x="820" y="181" class="t17 bold">小范围灰度</text><text x="820" y="209" class="t14 tm">真实使用里</text><text x="820" y="229" class="t14 tm">被采纳吗？</text><text x="820" y="464" class="t14 mono" fill="rgb(255,106,43)">持续</text></g><path d="M336 179 V171 H634 V179" class="ln acc"/><text x="485.0" y="161" class="t14 ta mid">L2 与 L3 可并行：一个看体验，一个看能力</text></svg></div><figcaption><b>图 4</b>原型验证阶梯　每一级只回答一个问题，便宜的假设排在前面；没通过就停在这一级，而不是带着疑问往上爬。</figcaption></figure>
+<div class="tw"><table>
+<thead><tr><th>阶段</th><th>要回答的问题</th><th>做法</th><th>通过的信号</th></tr></thead>
+<tbody>
+<tr><td>L0 故事板</td><td>这个问题真的存在，值得解决吗</td><td>用一页纸写清谁、什么场景、现在怎么做、痛在哪里；找 5 个目标用户讲一遍</td><td>他们主动补充细节，或问“什么时候能用”</td></tr>
+<tr><td>L1 假门</td><td>有人愿意为此行动吗</td><td>在产品里放一个入口或一个预约页，背后什么都没有</td><td>点击与留下信息的人达到你事先写下的门槛</td></tr>
+<tr><td>L2 绿野仙踪</td><td>这个交互真的有用吗，真实输入长什么样</td><td>用户看到的是界面，答案由人在后台手工给出<sup class="ref"><a href="#r4">[4]</a></sup></td><td>用户愿意回来再用；你收集到第一批真实输入</td></tr>
+<tr><td>L3 提示词原型</td><td>模型在真实样本上能做到多好</td><td>用 L2 收集的样本，跑在最简单的提示词上，人工逐条判断</td><td>达到可接受线的比例高到值得继续，且失败模式可归类</td></tr>
+<tr><td>L4 垂直切片</td><td>端到端稳定吗，成本和延迟能接受吗</td><td>接上真实数据与工具，配上评测，只做一个场景</td><td>回归评测稳定；单次成本、延迟都落在预算内</td></tr>
+<tr><td>L5 小范围灰度</td><td>真实使用中被采纳吗</td><td>放给一小批用户，看采纳、修改、放弃的比例</td><td>采纳率与留存符合事先写下的标准</td></tr>
+</tbody></table></div>
+<p class="tcap"><b>表 1</b>各级原型的问题、做法与通过信号。门槛请在开始之前写下，不要看到结果再定。</p>
+<h3>为什么 L2 绿野仙踪特别适合 AI 产品</h3>
+<p>绿野仙踪法让用户以为在与一个真实系统交互，实际上由人在幕后回应。这种做法在尼尔森诺曼集团的 UX 方法介绍里被列为在系统尚未构建时研究用户行为的手段。<sup class="ref"><a href="#r4">[4]</a></sup> 放到 AI 上它有两个额外的价值：第一，你无需先解决“模型能不能做到”，就能验证“这个交互值不值得做”，把产品风险和技术风险拆开；第二，人工回应的过程会自然沉淀出一批真实输入和“好答案长什么样”，这正是 L3 之后评测集的种子。</p>
+<h3>L2 与 L3 为什么可以并行</h3>
+<p>一个看体验，一个看能力，互不依赖。两边的结论组合起来，会落在四种情形：体验好、能力够，往 L4 走；体验好、能力不够，想办法缩小范围或补数据；体验不好、能力够，回头改交互；两边都不行，停下。这比“先做出来再说”省得多。</p>
+<h3>写下终止条件（kill criteria）</h3>
+<p>每一级开始前就写下：什么结果意味着停止，什么结果意味着继续。这是防止沉没成本的最简单手段。一条合格的终止条件长这样：“在 40 条真实样本上，人工判定可接受的比例低于一半，并且前三类失败原因都无法靠改提示词解决，则停在 L3。”</p>
+</section>
+
+<section class="s" id="s5">
+<h2 class="sh"><i>05</i>评测是新的 PRD</h2>
+<p>传统的需求文档用文字描述期望行为，用例通过即验收。AI 产品里，<strong>评测集就是需求文档中那部分可以执行的内容</strong>：它定义了团队对“做对了”的共同理解，并且每次改动都能被拿来检验。</p>
+<p>Hamel Husain 在其文章中强调，评测是迭代 AI 产品的核心，而且“多高的通过率可以上线”本身就是产品决策，不是纯技术指标。<sup class="ref"><a href="#r1">[1]</a></sup> 这一点常被忽视：评测的阈值需要产品负责人参与定义，因为它对应的是你愿意让用户承受多少失败。</p>
+<figure class="fg" id="fig5"><div class="figscroll"><svg viewBox="0 0 960 520" role="img" aria-labelledby="f5t f5d" class="svgfig"><title id="f5t">图 5：评测闭环</title><desc id="f5d">六个环节首尾相连：收集真实样本、精读输出、写成检查项、自动运行、改进、回归对比，线上失败案例回流到样本集。</desc><defs><marker id="f5-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#FF6A2B"/></marker></defs><path d="M585,92 Q740,92 740,143" class="flow" marker-end="url(#f5-a)"/><path d="M740,209 L740,313" class="flow" marker-end="url(#f5-a)"/><path d="M740,379 Q740,430 585,430" class="flow" marker-end="url(#f5-a)"/><path d="M375,430 Q220,430 220,379" class="flow" marker-end="url(#f5-a)"/><path d="M220,313 L220,209" class="flow" marker-end="url(#f5-a)"/><path d="M220,143 Q220,92 375,92" class="flow" marker-end="url(#f5-a)"/><g class="pop" style="--i:0"><rect x="375.0" y="59.0" width="210" height="66" rx="14" class="bx"/><text x="480" y="88" class="t17 bold mid">1　收集真实样本</text><text x="480" y="112" class="t14 tm mid">生产日志 · 合成 · 对抗</text></g><g class="pop" style="--i:1"><rect x="635.0" y="143.0" width="210" height="66" rx="14" class="bx hot"/><text x="740" y="172" class="t17 bold mid">2　精读输出</text><text x="740" y="196" class="t14 tm mid">归因失败模式</text></g><g class="pop" style="--i:2"><rect x="635.0" y="313.0" width="210" height="66" rx="14" class="bx"/><text x="740" y="342" class="t17 bold mid">3　写成检查项</text><text x="740" y="366" class="t14 tm mid">二元可判 · 分硬软</text></g><g class="pop" style="--i:3"><rect x="375.0" y="397.0" width="210" height="66" rx="14" class="bx"/><text x="480" y="426" class="t17 bold mid">4　自动运行</text><text x="480" y="450" class="t14 tm mid">代码断言 + 模型评审</text></g><g class="pop" style="--i:4"><rect x="115.0" y="313.0" width="210" height="66" rx="14" class="bx"/><text x="220" y="342" class="t17 bold mid">5　改进</text><text x="220" y="366" class="t14 tm mid">提示 · 检索 · 工具 · 界面</text></g><g class="pop" style="--i:5"><rect x="115.0" y="143.0" width="210" height="66" rx="14" class="bx"/><text x="220" y="172" class="t17 bold mid">6　回归对比</text><text x="220" y="196" class="t14 tm mid">分组通过率，不看总均值</text></g><text x="480" y="250" class="t28 bold mid">评测集</text><text x="480" y="282" class="t15 tm mid">团队对「做对了」的共同定义</text><text x="480" y="306" class="t14 ta mid">每转一圈，集合就更接近真实</text><text x="24" y="70" class="t14 tm">线上失败案例</text><text x="24" y="90" class="t14 tm">回流到第 1 步</text><text x="758" y="236" class="t14 ta">先读，再定指标</text></svg></div><figcaption><b>图 5</b>评测闭环　评测集在中间，是团队对“做对了”的共同定义；线上失败案例回流，让它越转越真实。</figcaption></figure>
+<h3>5.1 从真实样本开始，先读，再定指标</h3>
+<p>最常见的误区是先想一堆“准确率、相关性、流畅度”的通用指标。更有效的顺序是：先收集真实（或高保真合成）的输入，把模型的输出逐条读完，记录每一次失败是什么样子，再把反复出现的失败归类。<sup class="ref"><a href="#r1">[1]</a></sup> 这个读 trace 的过程枯燥，却是整个评测里信息密度最高的一步，因为它告诉你<strong>你的产品到底会怎么坏</strong>。</p>
+<h3>5.2 把检查项写成能判真假的问题</h3>
+<p>评分用 1–5 分的“质量”很难让两个人给出一致的结果。把它拆成若干条可以回答“是”或“否”的检查项，一致性会好得多，也更容易定位问题。检查项分两类：</p>
+<ul>
+<li><strong>硬约束</strong>：违反就是事故，必须全过。例如“不得编造原文中不存在的条款编号”。能用代码断言的就用代码；</li>
+<li><strong>软质量</strong>：影响好坏但不致命。例如“摘要是否覆盖了关键结论”。可以交给模型评审，也可以抽样人工看。</li>
+</ul>
+<pre><code><span class="c">// 一条评测样本（示意，字段名为举例）</span>
+{
+  <span class="s">"id"</span>: <span class="s">"case-0147"</span>,
+  <span class="s">"input"</span>: <span class="s">"……一份 30 页的招标文件……"</span>,
+  <span class="s">"group"</span>: <span class="s">"长文档 / 扫描件"</span>,
+  <span class="s">"checks"</span>: [
+    { <span class="s">"type"</span>: <span class="s">"hard"</span>, <span class="s">"how"</span>: <span class="s">"code"</span>,
+      <span class="s">"q"</span>: <span class="s">"输出引用的条款编号是否都存在于原文？"</span> },
+    { <span class="s">"type"</span>: <span class="s">"hard"</span>, <span class="s">"how"</span>: <span class="s">"code"</span>,
+      <span class="s">"q"</span>: <span class="s">"是否包含全部必填字段？"</span> },
+    { <span class="s">"type"</span>: <span class="s">"soft"</span>, <span class="s">"how"</span>: <span class="s">"llm-judge"</span>,
+      <span class="s">"q"</span>: <span class="s">"是否指出了与资质要求冲突的条目？"</span> }
+  ]
+}</code></pre>
+<p class="pcap"><b>代码 1</b>评测样本的结构示意：样本、分组、硬约束与软质量。内容为说明用途的虚构示例。</p>
+<h3>5.3 让模型当评审，但先校准它</h3>
+<p>用模型批量评审成本低、速度快，但它本身也会出错、也有偏好。可行的用法是：先用人工对一批样本给出判断，再让模型评审去判同一批，比较两者的一致程度；差异大的地方回头改评审的提示。只有校准过的模型评审才值得进入自动流程。<sup class="ref"><a href="#r1">[1]</a></sup> 即便如此，也应当定期抽样人工复核，避免评审与产品一起漂移。</p>
+<h3>5.4 看分组，不看总平均</h3>
+<p>总体通过率上涨一个点，可能掩盖了某个关键分组的大幅下降。评测集要按场景、输入类型、用户群分组，回归对比时逐组看。一次“整体变好”的改动，如果让最重要的那一组变差，就不应该发布。</p>
+<h3>5.5 评测集会成长</h3>
+<p>线上发现的每一个失败案例，都应该回流到评测集里，成为一条新样本。这样评测集会越来越接近真实世界，也越来越贴近产品的实际边界。它是团队积累下来的、最有价值的数据资产之一。</p>
+<div class="call"><b class="t">写给产品经理的一句话</b><p>你不一定要自己写评测代码，但评测里“什么算对”“多少算够”“哪些绝对不能错”这三件事，必须由你拍板。</p></div>
+</section>
+
+<section class="s" id="s6">
+<h2 class="sh"><i>06</i>成本、延迟与可靠性是产品属性</h2>
+<p>在传统软件里，成本是后端的事。AI 功能每一次调用都在花钱，延迟直接成为体验，而且二者与质量互相牵制：更强的模型更贵更慢，多轮重试更稳却更慢。Anthropic 的文章里也明确指出，智能体式的系统通常用更高的延迟和成本换取更好的任务表现，需要判断这笔交换是否划算。<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<p>我倾向用<strong>有效单位成本</strong>来衡量，而不是单次调用价格：</p>
+<blockquote>有效单位成本 ≈ 单次调用成本 ÷ 一次通过率 ＋ 人工复核成本<small>示意性的思考框架，不是行业标准公式</small></blockquote>
+<p>一次通过率低，意味着需要重试或返工，单次便宜的方案反而更贵；人工复核的成本往往被低估，一旦把它算进来，“省人”的功能有时并不省。反过来，这个视角也会告诉你：在哪一环用更强的模型是值得的，在哪一环用小模型加规则就够了。</p>
+<p>延迟则要按场景定预算：用户盯着等的交互，几秒就是体验分水岭；后台批处理则可以换更稳的方案。把预算写进需求，在 L4 阶段用真实数据验收。</p>
+</section>
+
+<section class="s" id="s7">
+<h2 class="sh"><i>07</i>工作流还是智能体：先用最简单的</h2>
+<p>Anthropic 把“工作流”与“智能体”区分开：前者由预先写好的代码路径编排模型与工具，后者由模型自己动态决定流程与工具使用。文章还总结了几种常见的工作流模式，包括提示链、路由、并行化、编排者—工作者与评估者—优化者，并建议从简单方案开始、按需增加复杂度。<sup class="ref"><a href="#r2">[2]</a></sup></p>
+<p>从产品角度，我加两条判断：</p>
+<ul>
+<li><strong>路径能被写下来，就写下来。</strong>流程固定的任务用工作流，行为可预测、可评测、可调试，用户的心理预期也稳定；</li>
+<li><strong>只有当步骤数无法预先确定、且需要根据中间结果灵活决策时，才考虑智能体</strong>，并同时给它设置边界：可用的工具、最大步数、需要人确认的动作。自主权刻度（图 3）在这里直接适用。</li>
+</ul>
+</section>
+
+<section class="s" id="s8">
+<h2 class="sh"><i>08</i>一个实例：用 AI 助手开发 Keysuit 时，人在哪里</h2>
+<p>Keysuit（声装）是我做的一款 macOS 菜单栏应用：把键盘敲击变成可选主题的声音。它的开发大量使用 AI 编程助手，因此项目里有一份写给助手的工作规则。下面这些事实来自项目自己的 AGENTS.md 与 README；这里不讨论产品本身，只看<strong>人与 AI 如何分工、如何验证</strong>。</p>
+<figure class="fg" id="fig6"><div class="figscroll"><svg viewBox="0 0 960 480" role="img" aria-labelledby="f6t f6d" class="svgfig"><title id="f6t">图 6：Keysuit 的开发节奏与人的验证</title><desc id="f6d">四个里程碑依次推进，每个里程碑结束后停下汇报并等待人确认；有一类工作固定由人负责。</desc><defs><marker id="f6-a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9A9CA6"/></marker></defs><text x="40" y="34" class="t16 bold">AI 编程助手：一次只做一个里程碑，做完停下汇报</text><g class="rise" style="--i:0"><rect x="40.0" y="56" width="200" height="150" rx="14" class="bx"/><rect x="40.0" y="56" width="200" height="4" rx="2" fill="rgb(125,184,255)"/><text x="58.0" y="90" class="t14 mono" fill="rgb(125,184,255)">M1</text><text x="58.0" y="118" class="t18 bold">发声</text><text x="58.0" y="148" class="t14 tm">按键到声音的最短路径</text><text x="58.0" y="170" class="t14 tm">不经主线程队列与磁盘读取</text></g><line x1="244.0" y1="131.0" x2="262.67" y2="131.0" class="ln" marker-end="url(#f6-a)"/><line x1="140.0" y1="206" x2="140.0" y2="230" class="lnd"/><rect x="54.0" y="230" width="172" height="32" rx="16" class="gate"/><text x="140.0" y="251" class="t14 mid">停下汇报 · 等人确认</text><g class="rise" style="--i:1"><rect x="266.7" y="56" width="200" height="150" rx="14" class="bx"/><rect x="266.7" y="56" width="200" height="4" rx="2" fill="rgb(168,158,184)"/><text x="284.7" y="90" class="t14 mono" fill="rgb(168,158,184)">M2</text><text x="284.7" y="118" class="t18 bold">主题与统计</text><text x="284.7" y="148" class="t14 tm">主题做成数据</text><text x="284.7" y="170" class="t14 tm">占位声音有明确标记</text></g><line x1="470.7" y1="131.0" x2="489.37" y2="131.0" class="ln" marker-end="url(#f6-a)"/><line x1="366.7" y1="206" x2="366.7" y2="230" class="lnd"/><rect x="280.7" y="230" width="172" height="32" rx="16" class="gate"/><text x="366.7" y="251" class="t14 mid">停下汇报 · 等人确认</text><g class="rise" style="--i:2"><rect x="493.3" y="56" width="200" height="150" rx="14" class="bx"/><rect x="493.3" y="56" width="200" height="4" rx="2" fill="rgb(212,132,114)"/><text x="511.3" y="90" class="t14 mono" fill="rgb(212,132,114)">M3</text><text x="511.3" y="118" class="t18 bold">设置与事件</text><text x="511.3" y="148" class="t14 tm">设置窗口</text><text x="511.3" y="170" class="t14 tm">系统事件</text></g><line x1="697.3" y1="131.0" x2="715.9699999999999" y2="131.0" class="ln" marker-end="url(#f6-a)"/><line x1="593.3" y1="206" x2="593.3" y2="230" class="lnd"/><rect x="507.29999999999995" y="230" width="172" height="32" rx="16" class="gate"/><text x="593.3" y="251" class="t14 mid">停下汇报 · 等人确认</text><g class="rise" style="--i:3"><rect x="720.0" y="56" width="200" height="150" rx="14" class="bx"/><rect x="720.0" y="56" width="200" height="4" rx="2" fill="rgb(255,106,43)"/><text x="738.0" y="90" class="t14 mono" fill="rgb(255,106,43)">M4</text><text x="738.0" y="118" class="t18 bold">完整体验</text><text x="738.0" y="148" class="t14 tm">整体体验打磨</text><text x="738.0" y="170" class="t14 tm">收尾与验收</text></g><line x1="820.0" y1="206" x2="820.0" y2="230" class="lnd"/><rect x="734.0" y="230" width="172" height="32" rx="16" class="gate"/><text x="820.0" y="251" class="t14 mid">停下汇报 · 等人确认</text><rect x="40" y="274" width="880" height="48" rx="12" class="bx"/><text x="480" y="304" class="t14 mid">汇报格式：做了什么 · 怎么验证 · 验收清单（通过 / 存疑 / 未过）· 偏离需求处 · 需要人决定的问题</text><text x="40" y="366" class="t16 bold ta">固定由人负责，不让 AI 绕过</text><rect x="40" y="382" width="118" height="42" rx="21" class="chip"/><text x="99.0" y="408" class="t14 mid">选择签名身份</text><rect x="170" y="382" width="118" height="42" rx="21" class="chip"/><text x="229.0" y="408" class="t14 mid">授权输入监控</text><rect x="300" y="382" width="240" height="42" rx="21" class="chip"/><text x="420.0" y="408" class="t14 mid">听感与延迟：耳朵 + 慢动作录像</text><rect x="552" y="382" width="132" height="42" rx="21" class="chip"/><text x="618.0" y="408" class="t14 mid">修改需求与素材</text></svg></div><figcaption><b>图 6</b>Keysuit 的开发节奏与人的验证　内容依据项目自身的工作规则整理，里程碑内的细项已简化：一次一个里程碑、做完停下汇报；签名、权限与听感延迟由人负责。</figcaption></figure>
+<h3>8.1 一次只做一个里程碑，做完停下</h3>
+<p>项目被拆成 M1 发声、M2 主题与统计、M3 设置与事件、M4 完整体验四个里程碑。规则要求助手一次只推进一个，完成后停下来汇报，等人确认再继续。这等价于把“自主权”卡在 L2–L3 档：可以自己动手写，但每一段交付都要经过人的检查点。</p>
+<h3>8.2 汇报格式就是验收清单</h3>
+<p>每次汇报要写清：做了什么、怎么验证的、验收清单的逐项结果（通过、存疑、未过）、与需求不一致之处，以及需要人决定的问题。“存疑”这一档很重要，它逼迫助手说出自己没把握的地方，而不是把不确定包装成完成。</p>
+<h3>8.3 把“绝不能错”写成硬约束</h3>
+<p>应用的隐私规则是：不读取、不记录、不打印按下的字符。同时，从按键到发声的路径不允许经过主线程队列或磁盘读取，这是对延迟的硬约束。这两类约束都不是“尽量做到”，而是任何一次改动都要对照的红线，对应评测里的硬约束。</p>
+<h3>8.4 有些验证，只能由人来做</h3>
+<p>签名身份的选择、输入监控权限的授予、以及声音延迟与音质的判断，被明确划为人的工作；后者靠耳朵和慢动作录像。这是一个朴素但重要的事实：<strong>当质量标准是感官的、主观的，评测就必须包含人</strong>。把这部分假装成可以全自动，只会得到一个自洽却不好用的产品。</p>
+<p>另外，主题被设计成数据（每个主题一个描述文件），占位用的合成声音有明确标记。这样替换素材不需要改代码，也让“哪些是真实素材、哪些是占位”一目了然，属于把可变部分隔离出来的设计。</p>
+</section>
+
+<section class="s" id="s9">
+<h2 class="sh"><i>09</i>局限与反方观点</h2>
+<ul>
+<li><strong>这是一套工作框架，不是经过大样本验证的定律。</strong>其中引用的研究和文章提供了依据，但各阶段的划分、五档自主权和有效单位成本的写法，是我的归纳。</li>
+<li><strong>小团队与早期探索不必照搬全部步骤。</strong>很多时候一个下午的 L3 就足够让你放弃一个坏主意；评测集从二三十条真实样本开始就有价值，不必等到完备。</li>
+<li><strong>评测会让你“优化评测”。</strong>指标一旦被当成目标，就会被钻空子。定期回到真实使用数据，是对这种偏离的纠正。</li>
+<li><strong>模型在快速变化。</strong>今天需要复杂工作流才能做到的事，明天可能一个提示词就够了。所以评测集比具体的提示词更值得长期投入。</li>
+<li><strong>主观质量难以完全量化。</strong>写作、设计、音质这类产品，最终仍要靠有品味的人来判断，评测只能帮助你不倒退。</li>
+</ul>
+</section>
+
+<section class="s" id="s10">
+<h2 class="sh"><i>10</i>立项前的十项检查</h2>
+<ul class="chk">
+<li>能用一句话说出：谁，在什么场景，现在怎么做，痛在哪里。</li>
+<li>写出了不使用 AI 的基线方案，并知道它能解决多少。</li>
+<li>把功能放进了“代价 × 可发现性”矩阵，并据此选定自主权档位。</li>
+<li>列出了硬约束：哪些事绝对不能发生。</li>
+<li>每一级原型开始前，写下了通过标准与终止条件。</li>
+<li>收集了至少几十条真实样本，并亲自读过模型的输出。</li>
+<li>把失败模式归了类，并为主要几类写出了二元检查项。</li>
+<li>知道“多高的通过率才能上线”，并由产品负责人拍了板。</li>
+<li>估算了有效单位成本与延迟预算，并写进需求。</li>
+<li>设计了出错后的路径：发现、依据、纠正、回流到评测集。</li>
+</ul>
+</section>
+
+<section class="s" id="refs">
+<h2 class="sh"><i>REF</i>参考资料</h2>
+<ol class="refs">
+<li id="r1">Hamel Husain. <em>Your AI Product Needs Evals</em>. <a href="https://hamel.dev/blog/posts/evals/" target="_blank" rel="noopener">hamel.dev/blog/posts/evals/</a></li>
+<li id="r2">Anthropic. <em>Building effective agents</em>. <a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" rel="noopener">anthropic.com/engineering/building-effective-agents</a></li>
+<li id="r3">Amershi, S. 等. <em>Guidelines for Human-AI Interaction</em>. CHI 2019. <a href="https://www.microsoft.com/en-us/research/publication/guidelines-for-human-ai-interaction/" target="_blank" rel="noopener">microsoft.com/en-us/research/publication/guidelines-for-human-ai-interaction/</a></li>
+<li id="r4">Nielsen Norman Group. <em>The Wizard of Oz Method in UX</em>. <a href="https://www.nngroup.com/videos/wizard-of-oz-method/" target="_blank" rel="noopener">nngroup.com/videos/wizard-of-oz-method/</a></li>
+<li id="r5">Keysuit 项目内部文档（AGENTS.md、README），第 8 节的事实来源。</li>
+</ol>
+<p class="note">说明：文中的图示均为自绘，数据点和评测样本为说明用途的示意，不代表真实统计。引用之处只转述了原文的观点，细节请阅读原文。这是第一版，欢迎指出错误；英文版后续补充。</p>
+</section>
+
+</main>
+</div>
+<footer class="ft">
+  <nav><a href="../index.html">首页</a><a href="https://github.com/sunShineLoveMe" target="_blank" rel="noopener">GitHub</a><a href="https://x.com/chirs_pro" target="_blank" rel="noopener">X</a><a href="mailto:chris@zhiyunllm.com">chris@zhiyunllm.com</a></nav>
+  <span>© Chris</span>
+</footer>
+<script>
+(function () {
+  var figs = document.querySelectorAll('figure.fg');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('vis'); io.unobserve(e.target); } }); }, { threshold: .25 });
+    figs.forEach(function (f) { io.observe(f); });
+  } else { figs.forEach(function (f) { f.classList.add('vis'); }); }
+  var links = [].slice.call(document.querySelectorAll('.toc a'));
+  var map = {}; links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var io2 = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { links.forEach(function (a) { a.classList.remove('on'); }); var a = map[e.target.id]; if (a) a.classList.add('on'); } }); }, { rootMargin: '-20% 0px -70% 0px' });
+    Object.keys(map).forEach(function (id) { var el = document.getElementById(id); if (el) io2.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>
